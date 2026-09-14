@@ -138,8 +138,7 @@ O documento oficial do projeto especifica **Postgres ou Oracle** como opções d
 * <img src = "https://raw.githubusercontent.com/devicons/devicon/7330accdbc47e2dc0c19789a48533c4a3c50fe58/icons/postgresql/postgresql-original.svg" widht="22" height="22" valign="middle" /> PostgreSQL;
 
 **Tools:**
-* <img src="https://raw.githubusercontent.com/devicons/devicon/7330accdbc47e2dc0c19789a48533c4a3c50fe58/icons/intellij/intellij-original.svg" width="22" height="22" valign="middle" /> IntelliJ;
-  
+* <img src="https://raw.githubusercontent.com/devicons/devicon/7330accdbc47e2dc0c19789a48533c4a3c50fe58/icons/vscode/vscode-original.svg" width="22" height="22" valign="middle" /> VS Code;
 
 
 ## 📁 Estrutura de pastas proposta
