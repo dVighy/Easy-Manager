@@ -1,0 +1,20 @@
+{
+  "name": "easy-manager",
+  "version": "1.0.0",
+  "description": "> **Projeto Integrador IV** — Engenharia de Software II\r > UNITAU, 2026 · Orientação: Prof. Marcio Moraes\r > Autoras: Daphne Almeida e Maria Fernanda Malaquias\r > Cliente/produto de referência: **EstacionaFácil**",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dVighy/Easy-Manager.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dVighy/Easy-Manager/issues"
+  },
+  "homepage": "https://github.com/dVighy/Easy-Manager#readme"
+}
