@@ -25,14 +25,16 @@ import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded';
 export default function Login() {
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => localStorage.getItem('easyManagerEmail') ?? '');
   const [senha, setSenha] = useState('');
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [lembrar, setLembrar] = useState(false);
   const [erro, setErro] = useState('');
+  const [carregando, setCarregando] = useState(false);
 
-  const handleLogin = (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setErro('');
 
     if (!email.trim() || !senha.trim()) {
       setErro('Preencha todos os campos para continuar.');
@@ -44,9 +46,55 @@ export default function Login() {
       return;
     }
 
-    // Acesso demonstrativo: autenticação real será integrada ao backend.
-    navigate('/');
+    try {
+      setCarregando(true);
+
+      const resposta = await fetch('http://localhost:8080/api/usuarios/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.trim(),
+          senha: senha,
+        }),
+      });
+
+      if (!resposta.ok) {
+        const dadosErro = await resposta.json().catch(() => null);
+
+        throw new Error(
+          dadosErro?.detail || 'E-mail ou senha inválidos.'
+        );
+      }
+
+      const usuario = await resposta.json();
+
+      // Mantém os dados do usuário durante a sessão.
+      sessionStorage.setItem(
+        'easyManagerUsuario',
+        JSON.stringify(usuario)
+      );
+
+      // Guarda somente o e-mail, nunca a senha.
+      if (lembrar) {
+        localStorage.setItem('easyManagerEmail', email.trim());
+      } else {
+        localStorage.removeItem('easyManagerEmail');
+      }
+
+      navigate('/');
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível conectar ao servidor.'
+      );
+    } finally {
+      setCarregando(false);
+    }
   };
+
 
   return (
     <Box
@@ -63,11 +111,13 @@ export default function Login() {
           display: { xs: 'none', md: 'flex' },
           flexDirection: 'column',
           justifyContent: 'space-between',
+          alignItems: 'center ',
           backgroundColor: '#1E1E2F',
           color: 'white',
           p: { md: 6, lg: 8 },
           position: 'relative',
           overflow: 'hidden',
+          
         }}
       >
         <Box
@@ -79,6 +129,8 @@ export default function Login() {
             border: '1px solid rgba(255,255,255,0.08)',
             top: '25%',
             right: -180,
+            justifyContent: 'center',
+            alignItems: 'center',
           }}
         />
 
@@ -90,7 +142,8 @@ export default function Login() {
             borderRadius: '50%',
             border: '1px solid rgba(255,255,255,0.08)',
             bottom: -100,
-            left: -100,
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         />
 
@@ -108,7 +161,7 @@ export default function Login() {
           </Box>
         </Box>
 
-        <Box sx={{ position: 'relative', zIndex: 1, maxWidth: 500 }}>
+        <Box sx={{ position: 'relative', alignItems: 'center', justifyContent: 'center', zIndex: 1, maxWidth: 500 }}>
           <Typography
             variant="overline"
             sx={{
@@ -393,6 +446,7 @@ export default function Login() {
                 fullWidth
                 type="submit"
                 variant="contained"
+                disabled={carregando}
                 sx={{
                   backgroundColor: '#1E1E2F',
                   color: '#FFFFFF',
@@ -408,7 +462,7 @@ export default function Login() {
                   },
                 }}
               >
-                Entrar
+                {carregando ? 'Entrando...' : 'Entrar'}
               </Button>
             </Box>
 

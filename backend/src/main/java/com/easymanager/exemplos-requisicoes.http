@@ -1,0 +1,33 @@
+### Listar empresas
+GET http://localhost:8080/api/empresas
+
+### Cadastrar empresa
+POST http://localhost:8080/api/empresas
+Content-Type: application/json
+
+{
+  "nome": "EstacionaFacil",
+  "cnpj": "12345678000199"
+}
+
+### Cadastrar funcionário (substitua id da empresa por um existente)
+POST http://localhost:8080/api/funcionarios
+Content-Type: application/json
+
+{
+  "nome": "Carlos Oliveira",
+  "cargo": "Operador de estacionamento",
+  "email": "carlos@estacionafacil.com",
+  "telefone": "(12) 99999-1001",
+  "ativo": true,
+  "empresa": { "id": 1 }
+}
+
+### Listar funcionários de uma empresa
+GET http://localhost:8080/api/funcionarios/empresa/1
+
+### Desativar funcionário
+PATCH http://localhost:8080/api/funcionarios/1/status?ativo=false
+
+### Filtrar avaliações de 4 a 5 estrelas
+GET http://localhost:8080/api/avaliacoes/empresa/1/nota?min=4&max=5

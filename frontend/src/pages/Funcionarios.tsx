@@ -1,5 +1,6 @@
 
-import { useMemo, useState } from 'react';
+import {useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 
 import {
   Avatar,
@@ -20,7 +21,6 @@ import {
   BriefcaseBusiness,
   Clock,
   Search,
-  Star,
   UserCheck,
   Users,
   X,
@@ -30,154 +30,206 @@ interface Funcionario {
   id: number;
   nome: string;
   cargo: string;
-  departamento: string;
-  status: 'Em atividade' | 'Em intervalo' | 'Inativo';
-  avaliacao: number;
-  inicial: string;
-  email: string;
-  telefone: string;
+  email: string | null;
+  telefone: string | null;
+  ativo: boolean;
+  empresa: {
+    id: number;
+    nome: string;
+  };
 }
 
-const funcionarios: Funcionario[] = [
-  {
-    id: 1,
-    nome: 'Carlos Oliveira',
-    cargo: 'Operador de estacionamento',
-    departamento: 'Operacional',
-    status: 'Em atividade',
-    avaliacao: 4.8,
-    inicial: 'C',
-    email: 'carlos@estacionafacil.com',
-    telefone: '(12) 99999-1001',
-  },
-  {
-    id: 2,
-    nome: 'Mariana Santos',
-    cargo: 'Atendente',
-    departamento: 'Atendimento',
-    status: 'Em atividade',
-    avaliacao: 4.9,
-    inicial: 'M',
-    email: 'mariana@estacionafacil.com',
-    telefone: '(12) 99999-1002',
-  },
-  {
-    id: 3,
-    nome: 'Lucas Ferreira',
-    cargo: 'Operador de estacionamento',
-    departamento: 'Operacional',
-    status: 'Em intervalo',
-    avaliacao: 4.5,
-    inicial: 'L',
-    email: 'lucas@estacionafacil.com',
-    telefone: '(12) 99999-1003',
-  },
-  {
-    id: 4,
-    nome: 'Ana Carolina Lima',
-    cargo: 'Supervisora',
-    departamento: 'Gestão',
-    status: 'Em atividade',
-    avaliacao: 4.9,
-    inicial: 'A',
-    email: 'ana@estacionafacil.com',
-    telefone: '(12) 99999-1004',
-  },
-  {
-    id: 5,
-    nome: 'Pedro Almeida',
-    cargo: 'Atendente',
-    departamento: 'Atendimento',
-    status: 'Em atividade',
-    avaliacao: 4.4,
-    inicial: 'P',
-    email: 'pedro@estacionafacil.com',
-    telefone: '(12) 99999-1005',
-  },
-  {
-    id: 6,
-    nome: 'Juliana Costa',
-    cargo: 'Operadora de estacionamento',
-    departamento: 'Operacional',
-    status: 'Em intervalo',
-    avaliacao: 4.7,
-    inicial: 'J',
-    email: 'juliana@estacionafacil.com',
-    telefone: '(12) 99999-1006',
-  },
-  {
-    id: 7,
-    nome: 'Rafael Mendes',
-    cargo: 'Auxiliar administrativo',
-    departamento: 'Administrativo',
-    status: 'Em atividade',
-    avaliacao: 4.3,
-    inicial: 'R',
-    email: 'rafael@estacionafacil.com',
-    telefone: '(12) 99999-1007',
-  },
-  {
-    id: 8,
-    nome: 'Beatriz Souza',
-    cargo: 'Atendente',
-    departamento: 'Atendimento',
-    status: 'Em atividade',
-    avaliacao: 4.8,
-    inicial: 'B',
-    email: 'beatriz@estacionafacil.com',
-    telefone: '(12) 99999-1008',
-  },
-];
+// const funcionarios: Funcionario[] = [
+//   {
+//     id: 1,
+//     nome: 'Carlos Oliveira',
+//     cargo: 'Operador de estacionamento',
+//     departamento: 'Operacional',
+//     status: 'Em atividade',
+//     avaliacao: 4.8,
+//     inicial: 'C',
+//     email: 'carlos@estacionafacil.com',
+//     telefone: '(12) 99999-1001',
+//   },
+//   {
+//     id: 2,
+//     nome: 'Mariana Santos',
+//     cargo: 'Atendente',
+//     departamento: 'Atendimento',
+//     status: 'Em atividade',
+//     avaliacao: 4.9,
+//     inicial: 'M',
+//     email: 'mariana@estacionafacil.com',
+//     telefone: '(12) 99999-1002',
+//   },
+//   {
+//     id: 3,
+//     nome: 'Lucas Ferreira',
+//     cargo: 'Operador de estacionamento',
+//     departamento: 'Operacional',
+//     status: 'Em intervalo',
+//     avaliacao: 4.5,
+//     inicial: 'L',
+//     email: 'lucas@estacionafacil.com',
+//     telefone: '(12) 99999-1003',
+//   },
+//   {
+//     id: 4,
+//     nome: 'Ana Carolina Lima',
+//     cargo: 'Supervisora',
+//     departamento: 'Gestão',
+//     status: 'Em atividade',
+//     avaliacao: 4.9,
+//     inicial: 'A',
+//     email: 'ana@estacionafacil.com',
+//     telefone: '(12) 99999-1004',
+//   },
+//   {
+//     id: 5,
+//     nome: 'Pedro Almeida',
+//     cargo: 'Atendente',
+//     departamento: 'Atendimento',
+//     status: 'Em atividade',
+//     avaliacao: 4.4,
+//     inicial: 'P',
+//     email: 'pedro@estacionafacil.com',
+//     telefone: '(12) 99999-1005',
+//   },
+//   {
+//     id: 6,
+//     nome: 'Juliana Costa',
+//     cargo: 'Operadora de estacionamento',
+//     departamento: 'Operacional',
+//     status: 'Em intervalo',
+//     avaliacao: 4.7,
+//     inicial: 'J',
+//     email: 'juliana@estacionafacil.com',
+//     telefone: '(12) 99999-1006',
+//   },
+//   {
+//     id: 7,
+//     nome: 'Rafael Mendes',
+//     cargo: 'Auxiliar administrativo',
+//     departamento: 'Administrativo',
+//     status: 'Em atividade',
+//     avaliacao: 4.3,
+//     inicial: 'R',
+//     email: 'rafael@estacionafacil.com',
+//     telefone: '(12) 99999-1007',
+//   },
+//   {
+//     id: 8,
+//     nome: 'Beatriz Souza',
+//     cargo: 'Atendente',
+//     departamento: 'Atendimento',
+//     status: 'Em atividade',
+//     avaliacao: 4.8,
+//     inicial: 'B',
+//     email: 'beatriz@estacionafacil.com',
+//     telefone: '(12) 99999-1008',
+//   },
+// ];
 
-const indicadores = [
-  {
-    titulo: 'Total de funcionários',
-    valor: '12',
-    descricao: 'Equipe cadastrada',
-    icon: Users,
-    cor: '#3977C5',
-  },
-  {
-    titulo: 'Em atividade',
-    valor: '10',
-    descricao: 'Funcionários ativos',
-    icon: UserCheck,
-    cor: '#16865B',
-  },
-  {
-    titulo: 'Em intervalo',
-    valor: '2',
-    descricao: 'Funcionários em pausa',
-    icon: Clock,
-    cor: '#D97706',
-  },
-  {
-    titulo: 'Avaliação média',
-    valor: '4,6/5',
-    descricao: 'Indicador demonstrativo',
-    icon: Star,
-    cor: '#8057B7',
-  },
-];
 
 export default function Funcionarios() {
+  const { empresaId } = useParams<{ empresaId: string }>();
+
+  const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState('Todos');
   const [selecionado, setSelecionado] = useState<Funcionario | null>(null);
+
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState('');
+
+  useEffect(() => {
+    async function carregarFuncionarios() {
+      try {
+        setCarregando(true);
+        setErro('');
+
+        const rota = empresaId
+          ? `http://localhost:8080/api/funcionarios/empresa/${empresaId}`
+          : 'http://localhost:8080/api/funcionarios';
+
+        const resposta = await fetch(rota);
+
+        if (!resposta.ok) {
+          throw new Error('Não foi possível carregar os funcionários.');
+        }
+
+        const dados: Funcionario[] = await resposta.json();
+
+        setFuncionarios(dados);
+      } catch (error) {
+        setErro(
+          error instanceof Error
+            ? error.message
+            : 'Erro ao conectar com o servidor.'
+        );
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    carregarFuncionarios();
+  }, [empresaId]);
 
   const funcionariosFiltrados = useMemo(() => {
     return funcionarios.filter((item) => {
       const correspondeBusca =
         item.nome.toLowerCase().includes(busca.toLowerCase()) ||
-        item.cargo.toLowerCase().includes(busca.toLowerCase()) ||
-        item.departamento.toLowerCase().includes(busca.toLowerCase());
+        item.cargo.toLowerCase().includes(busca.toLowerCase());
+
+      const status = item.ativo ? 'Em atividade' : 'Inativo';
 
       const correspondeFiltro =
-        filtro === 'Todos' || item.status === filtro;
+        filtro === 'Todos' || status === filtro;
 
       return correspondeBusca && correspondeFiltro;
     });
-  }, [busca, filtro]);
+  }, [funcionarios, busca, filtro]);
+
+  const totalFuncionarios = funcionarios.length;
+
+  const totalAtivos = funcionarios.filter(
+    (item) => item.ativo
+  ).length;
+
+  const totalInativos = totalFuncionarios - totalAtivos;
+
+  const indicadores = [
+    {
+      titulo: 'Total de funcionários',
+      valor: totalFuncionarios.toString(),
+      descricao: 'Equipe cadastrada',
+      icon: Users,
+      cor: '#3977C5',
+    },
+    {
+      titulo: 'Em atividade',
+      valor: totalAtivos.toString(),
+      descricao: 'Funcionários ativos',
+      icon: UserCheck,
+      cor: '#16865B',
+    },
+    {
+      titulo: 'Inativos',
+      valor: totalInativos.toString(),
+      descricao: 'Funcionários inativos',
+      icon: Clock,
+      cor: '#D97706',
+    },
+    {
+      titulo: 'Empresas',
+      valor: new Set(
+        funcionarios.map((item) => item.empresa?.id).filter(Boolean)
+      ).size.toString(),
+      descricao: 'Empresas com funcionários',
+      icon: BriefcaseBusiness,
+      cor: '#8057B7',
+    },
+  ];
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -193,16 +245,17 @@ export default function Funcionarios() {
         </Typography>
       </Box>
 
-      <Chip
-        label="Dados demonstrativos"
-        size="small"
-        sx={{
-          alignSelf: 'flex-start',
-          bgcolor: '#E8F1FC',
-          color: '#3977C5',
-          fontWeight: 600,
-        }}
-      />
+      {carregando && (
+        <Typography color="text.secondary">
+          Carregando funcionários...
+        </Typography>
+      )}
+
+      {erro && (
+        <Typography color="error">
+          {erro}
+        </Typography>
+      )}
 
       {/* Indicadores */}
       <Box
@@ -308,7 +361,6 @@ export default function Funcionarios() {
           >
             <MenuItem value="Todos">Todos</MenuItem>
             <MenuItem value="Em atividade">Em atividade</MenuItem>
-            <MenuItem value="Em intervalo">Em intervalo</MenuItem>
             <MenuItem value="Inativo">Inativo</MenuItem>
           </TextField>
         </Box>
@@ -351,7 +403,7 @@ export default function Funcionarios() {
                     fontWeight: 700,
                   }}
                 >
-                  {item.inicial}
+                  {item.nome.charAt(0).toUpperCase()}
                 </Avatar>
 
                 <Box flex={1} minWidth={0}>
@@ -364,16 +416,10 @@ export default function Funcionarios() {
                   </Typography>
                 </Box>
 
-                <Chip
-                  label={item.status}
+               <Chip
+                  label={item.ativo ? 'Em atividade' : 'Inativo'}
                   size="small"
-                  color={
-                    item.status === 'Em atividade'
-                      ? 'success'
-                      : item.status === 'Em intervalo'
-                        ? 'warning'
-                        : 'default'
-                  }
+                  color={item.ativo ? 'success' : 'default'}
                 />
               </Box>
 
@@ -384,17 +430,10 @@ export default function Funcionarios() {
                   <BriefcaseBusiness size={15} color="#64748B" />
 
                   <Typography color="text.secondary" fontSize={12}>
-                    {item.departamento}
+                    {item.empresa?.nome ?? 'Empresa não informada'}
                   </Typography>
                 </Box>
 
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <Star size={15} color="#D97706" fill="#D97706" />
-
-                  <Typography fontWeight={700} fontSize={13}>
-                    {item.avaliacao.toFixed(1)}
-                  </Typography>
-                </Box>
               </Box>
 
               <Typography
@@ -419,7 +458,7 @@ export default function Funcionarios() {
 
         <Box px={3} py={2} borderTop="1px solid #E5EAF1">
           <Typography color="text.secondary" fontSize={12}>
-            Exibindo {funcionariosFiltrados.length} de {funcionarios.length} funcionários demonstrativos.
+            Exibindo {funcionariosFiltrados.length} de {funcionarios.length} funcionários.
           </Typography>
         </Box>
       </Paper>
@@ -467,7 +506,7 @@ export default function Funcionarios() {
                     fontWeight: 700,
                   }}
                 >
-                  {selecionado.inicial}
+                  {selecionado.nome.charAt(0).toUpperCase()}
                 </Avatar>
 
                 <Box>
@@ -489,7 +528,7 @@ export default function Funcionarios() {
                     Departamento
                   </Typography>
                   <Typography fontWeight={600}>
-                    {selecionado.departamento}
+                    {selecionado.empresa?.nome ?? 'Não informada'}
                   </Typography>
                 </Box>
 
@@ -498,9 +537,9 @@ export default function Funcionarios() {
                     Situação atual
                   </Typography>
                   <Chip
-                    label={selecionado.status}
+                    label={selecionado.ativo ? 'Em atividade' : 'Inativo'}
                     size="small"
-                    color={selecionado.status === 'Em atividade' ? 'success' : 'warning'}
+                    color={selecionado.ativo ? 'success' : 'warning'}
                   />
                 </Box>
 
@@ -522,18 +561,6 @@ export default function Funcionarios() {
                   </Typography>
                 </Box>
 
-                <Box>
-                  <Typography color="text.secondary" fontSize={12}>
-                    Indicador de desempenho ilustrativo
-                  </Typography>
-
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Star size={18} color="#D97706" fill="#D97706" />
-                    <Typography fontWeight={700}>
-                      {selecionado.avaliacao.toFixed(1)} / 5
-                    </Typography>
-                  </Box>
-                </Box>
               </Box>
 
               <Box
@@ -543,7 +570,7 @@ export default function Funcionarios() {
                 borderRadius={2}
               >
                 <Typography fontSize={12} color="text.secondary">
-                  As informações e os indicadores desta página são demonstrativos. Não há integração com registros reais de funcionários ou avaliação automatizada de desempenho nesta versão.
+                  As informações e os indicadores desta página são demonstrativos. Não há integração com registros reais de funcionários.
                 </Typography>
               </Box>
             </DialogContent>

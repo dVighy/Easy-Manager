@@ -1,0 +1,11 @@
+
+databaseChangeLog:
+  - changeSet:
+      id: 001-estrutura-inicial
+      author: easymanager
+      changes:
+        - sqlFile:
+            path: ../changes/001-estrutura-inicial.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false

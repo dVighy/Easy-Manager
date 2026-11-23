@@ -1,5 +1,6 @@
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
 
 import {
   Box,
@@ -21,7 +22,8 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Avatar
+  Avatar,
+  Alert,
 } from '@mui/material';
 
 import {
@@ -46,82 +48,8 @@ interface Avaliacao {
   sentimento: Sentimento;
   assuntos: string[];
   interpretacao: string;
+  nota: number;
 }
-
-const avaliacoes: Avaliacao[] = [
-  {
-    id: 1,
-    cliente: 'Cliente 001',
-    comentario: 'Excelente atendimento! Os funcionários foram muito educados e o estacionamento estava organizado.',
-    data: '03/11/2026',
-    sentimento: 'Positivo',
-    assuntos: ['Atendimento', 'Organização'],
-    interpretacao: 'O comentário demonstra satisfação com a qualidade do atendimento e a organização do ambiente.'
-  },
-  {
-    id: 2,
-    cliente: 'Cliente 002',
-    comentario: 'Esperei muito tempo para conseguir retirar meu veículo. O processo poderia ser mais rápido.',
-    data: '02/11/2026',
-    sentimento: 'Negativo',
-    assuntos: ['Tempo de espera', 'Retirada de veículos'],
-    interpretacao: 'O comentário indica insatisfação relacionada ao tempo de espera e à agilidade do processo de retirada.'
-  },
-  {
-    id: 3,
-    cliente: 'Cliente 003',
-    comentario: 'O estacionamento atende às minhas necessidades e possui uma localização conveniente.',
-    data: '01/11/2026',
-    sentimento: 'Positivo',
-    assuntos: ['Localização', 'Serviço'],
-    interpretacao: 'O cliente demonstra satisfação com a localização e a adequação do serviço às suas necessidades.'
-  },
-  {
-    id: 4,
-    cliente: 'Cliente 004',
-    comentario: 'O valor cobrado poderia ser melhor. Achei um pouco caro pelo tempo que permaneci.',
-    data: '31/10/2026',
-    sentimento: 'Negativo',
-    assuntos: ['Preço', 'Custo-benefício'],
-    interpretacao: 'O comentário aponta insatisfação com o preço e a percepção de custo-benefício.'
-  },
-  {
-    id: 5,
-    cliente: 'Cliente 005',
-    comentario: 'O serviço foi realizado normalmente, sem problemas durante minha permanência.',
-    data: '30/10/2026',
-    sentimento: 'Neutro',
-    assuntos: ['Serviço'],
-    interpretacao: 'O comentário apresenta uma experiência sem manifestações claras de satisfação ou insatisfação.'
-  },
-  {
-    id: 6,
-    cliente: 'Cliente 006',
-    comentario: 'Ambiente limpo, seguro e com funcionários muito prestativos. Voltarei com certeza!',
-    data: '29/10/2026',
-    sentimento: 'Positivo',
-    assuntos: ['Limpeza', 'Segurança', 'Atendimento'],
-    interpretacao: 'O cliente demonstra satisfação com a limpeza, a segurança e a qualidade do atendimento.'
-  },
-  {
-    id: 7,
-    cliente: 'Cliente 007',
-    comentario: 'Tive dificuldade para encontrar uma vaga disponível no horário de pico.',
-    data: '28/10/2026',
-    sentimento: 'Negativo',
-    assuntos: ['Disponibilidade de vagas'],
-    interpretacao: 'O comentário aponta dificuldades relacionadas à disponibilidade de vagas em períodos de maior movimento.'
-  },
-  {
-    id: 8,
-    cliente: 'Cliente 008',
-    comentario: 'O atendimento foi adequado e consegui estacionar sem maiores dificuldades.',
-    data: '27/10/2026',
-    sentimento: 'Positivo',
-    assuntos: ['Atendimento', 'Disponibilidade de vagas'],
-    interpretacao: 'A experiência foi satisfatória, com destaque para o atendimento e a facilidade de estacionamento.'
-  }
-];
 
 const cores: Record<Sentimento, string> = {
   Positivo: '#319B72',
@@ -133,6 +61,11 @@ function Avaliacoes() {
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState('Todos');
   const [selecionada, setSelecionada] = useState<Avaliacao | null>(null);
+  const { empresaId } = useParams();
+
+const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
+const [carregando, setCarregando] = useState(true);
+const [erro, setErro] = useState('');
 
   const filtradas = useMemo(() => {
     return avaliacoes.filter((item) => {
@@ -148,7 +81,7 @@ function Avaliacoes() {
 
       return correspondeBusca && correspondeFiltro;
     });
-  }, [busca, filtro]);
+  }, [avaliacoes, busca, filtro]);
 
   const quantidadePositivas = avaliacoes.filter(
     (item) => item.sentimento === 'Positivo'
@@ -194,7 +127,62 @@ function Avaliacoes() {
   ];
 
   const percentual = (valor: number) =>
-    ((valor / avaliacoes.length) * 100).toFixed(1);
+  avaliacoes.length === 0
+    ? '0.0'
+    : ((valor / avaliacoes.length) * 100).toFixed(1);
+
+  useEffect(() => {
+  const buscarAvaliacoes = async () => {
+    if (!empresaId) {
+      setErro('Empresa não identificada.');
+      setCarregando(false);
+      return;
+    }
+
+    try {
+      setCarregando(true);
+      setErro('');
+
+      const resposta = await fetch(
+        `http://localhost:8080/api/avaliacoes/empresa/${empresaId}`
+      );
+
+      if (!resposta.ok) {
+        throw new Error('Não foi possível carregar as avaliações.');
+      }
+
+      const dados = await resposta.json();
+
+      const formatadas: Avaliacao[] = dados.map((item: any) => ({
+        id: item.id,
+        cliente: item.cliente?.nome ?? 'Cliente não identificado',
+        comentario: item.comentario ?? '',
+        data: item.data
+          ? new Date(item.data).toLocaleDateString('pt-BR')
+          : '',
+        sentimento: ['Positivo', 'Neutro', 'Negativo'].includes(item.sentimento)
+          ? item.sentimento as Sentimento
+          : 'Neutro',
+        assuntos: [],
+        interpretacao: 'Análise automatizada ainda não integrada.',
+        nota: item.nota
+      }));
+
+      setAvaliacoes(formatadas);
+
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao carregar avaliações.'
+      );
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  buscarAvaliacoes();
+}, [empresaId]);
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -209,6 +197,12 @@ function Avaliacoes() {
           Acompanhe os comentários e identifique a percepção dos clientes.
         </Typography>
       </Box>
+
+      {erro && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {erro}
+        </Alert>
+      )}
 
       {/* Indicadores */}
       <Box
@@ -395,6 +389,13 @@ function Avaliacoes() {
             </TableHead>
 
             <TableBody>
+              {carregando && (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 5 }}>
+                    Carregando avaliações...
+                  </TableCell>
+                </TableRow>
+              )}
               {filtradas.map((item) => (
                 <TableRow
                   key={item.id}
@@ -472,12 +473,10 @@ function Avaliacoes() {
                 </TableRow>
               ))}
 
-              {filtradas.length === 0 && (
+              {!carregando && filtradas.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} align="center" sx={{ py: 5 }}>
-                    <Typography color="text.secondary">
-                      Nenhuma avaliação encontrada.
-                    </Typography>
+                    Nenhuma avaliação encontrada.
                   </TableCell>
                 </TableRow>
               )}
@@ -487,7 +486,7 @@ function Avaliacoes() {
 
         <Box sx={{ px: 3, py: 2 }}>
           <Typography variant="caption" color="text.secondary">
-            Exibindo {filtradas.length} de {avaliacoes.length} avaliações demonstrativas.
+            Exibindo {filtradas.length} de {avaliacoes.length} avaliações.
           </Typography>
         </Box>
       </Paper>
