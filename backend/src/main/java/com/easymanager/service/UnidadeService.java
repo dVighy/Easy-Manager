@@ -1,70 +1,95 @@
 package com.easymanager.service;
 
+import com.easymanager.model.Empresa;
 import com.easymanager.model.Unidade;
-import com.easymanager.repository.UnidadeRepository;
 import com.easymanager.repository.EmpresaRepository;
+import com.easymanager.repository.UnidadeRepository;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
 @Transactional
 public class UnidadeService {
-    private final UnidadeRepository repository;
+
+    private final UnidadeRepository unidadeRepository;
     private final EmpresaRepository empresaRepository;
 
-    public UnidadeService(UnidadeRepository repository, EmpresaRepository empresaRepository) {
-        this.repository = repository;
+    public UnidadeService(
+            UnidadeRepository unidadeRepository,
+            EmpresaRepository empresaRepository) {
+        this.unidadeRepository = unidadeRepository;
         this.empresaRepository = empresaRepository;
     }
 
-    @Transactional(readOnly = true)
-    public List<Unidade> listarTodas() { return repository.findAll(); }
-
-    @Transactional(readOnly = true)
-    public List<Unidade> listarPorEmpresa(Long empresaId) {
-        empresaRepository.findById(empresaId)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Empresa não encontrada: " + empresaId));
-        return repository.findAll().stream()
-                .filter(u -> u.getEmpresa() != null && empresaId.equals(u.getEmpresa().getId()))
-                .toList();
+    public List<Unidade> listarTodas() {
+        return unidadeRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
+    public List<Unidade> listarPorEmpresa(Long empresaId) {
+        if (!empresaRepository.existsById(empresaId)) {
+            throw new RuntimeException("Empresa não encontrada.");
+        }
+
+        return unidadeRepository.findByEmpresaId(empresaId);
+    }
+
     public Unidade buscarPorId(Long id) {
-        return repository.findById(id)
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Unidade não encontrada: " + id));
+        return unidadeRepository.findById(id)
+                .orElseThrow(() ->
+                        new RuntimeException("Unidade não encontrada."));
     }
 
     public Unidade cadastrar(Unidade unidade) {
-        if (unidade.getEmpresa() == null || unidade.getEmpresa().getId() == null)
-            throw new RegraNegocioException("Informe o id da empresa da unidade.");
-        var empresa = empresaRepository.findById(unidade.getEmpresa().getId())
-                .orElseThrow(() -> new RecursoNaoEncontradoException("Empresa não encontrada."));
-        unidade.setId(null);
+        if (unidade.getEmpresa() == null ||
+                unidade.getEmpresa().getId() == null) {
+            throw new RuntimeException("Empresa obrigatória.");
+        }
+
+        Empresa empresa = empresaRepository.findById(
+                unidade.getEmpresa().getId()
+        ).orElseThrow(() ->
+                new RuntimeException("Empresa não encontrada."));
+
         unidade.setEmpresa(empresa);
-        if (unidade.getAtivo() == null) unidade.setAtivo(true);
-        return repository.save(unidade);
+        unidade.setId(null);
+
+        if (unidade.getAtivo() == null) {
+            unidade.setAtivo(true);
+        }
+
+        return unidadeRepository.save(unidade);
     }
 
     public Unidade atualizar(Long id, Unidade dados) {
-        Unidade atual = buscarPorId(id);
-        atual.setNome(dados.getNome());
-        atual.setEndereco(dados.getEndereco());
-        atual.setTelefone(dados.getTelefone());
-        if (dados.getEmpresa() != null && dados.getEmpresa().getId() != null) {
-            var empresa = empresaRepository.findById(dados.getEmpresa().getId())
-                    .orElseThrow(() -> new RecursoNaoEncontradoException("Empresa não encontrada."));
-            atual.setEmpresa(empresa);
+        Unidade unidade = buscarPorId(id);
+
+        unidade.setNome(dados.getNome());
+        unidade.setEndereco(dados.getEndereco());
+        unidade.setTelefone(dados.getTelefone());
+
+        if (dados.getAtivo() != null) {
+            unidade.setAtivo(dados.getAtivo());
         }
-        return repository.save(atual);
+
+        if (dados.getEmpresa() != null &&
+                dados.getEmpresa().getId() != null) {
+
+            Empresa empresa = empresaRepository.findById(
+                    dados.getEmpresa().getId()
+            ).orElseThrow(() ->
+                    new RuntimeException("Empresa não encontrada."));
+
+            unidade.setEmpresa(empresa);
+        }
+
+        return unidadeRepository.save(unidade);
     }
 
-    public Unidade alterarStatus(Long id, Boolean ativo) {
-        Unidade atual = buscarPorId(id);
-        atual.setAtivo(ativo);
-        return repository.save(atual);
+    public void excluir(Long id) {
+        Unidade unidade = buscarPorId(id);
+        unidadeRepository.delete(unidade);
     }
-
-    public void excluir(Long id) { repository.delete(buscarPorId(id)); }
 }

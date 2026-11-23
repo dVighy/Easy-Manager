@@ -2,6 +2,7 @@ package com.easymanager.service;
 
 import com.easymanager.model.Usuario;
 import com.easymanager.repository.UsuarioRepository;
+import com.easymanager.repository.UsuarioEmpresaRepository; 
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -14,8 +15,12 @@ import java.util.List;
 @Transactional
 public class UsuarioService {
     private final UsuarioRepository repository;
+    private final UsuarioEmpresaRepository usuarioEmpresaRepository;
 
-    public UsuarioService(UsuarioRepository repository) { this.repository = repository; }
+    public UsuarioService(UsuarioRepository repository, UsuarioEmpresaRepository usuarioEmpresaRepository) {
+        this.repository = repository;
+        this.usuarioEmpresaRepository = usuarioEmpresaRepository;
+    }
 
     @Transactional(readOnly = true)
     public List<Usuario> listarTodos() { return repository.findAll(); }
@@ -76,5 +81,19 @@ public class UsuarioService {
         }
 
         return usuario;
+    }
+
+    @Transactional(readOnly = true)
+    public String buscarPerfilNaEmpresa(Long usuarioId, Long empresaId) {
+
+        return usuarioEmpresaRepository
+                .findByUsuario_IdAndEmpresa_Id(usuarioId, empresaId)
+                .map(vinculo -> vinculo.getPerfil())
+                .orElseThrow(() ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Usuário não possui vínculo com esta empresa."
+                    )
+                );
     }
 }

@@ -12,6 +12,10 @@ import Financeiro from './pages/Financeiro';
 import Funcionarios from './pages/Funcionarios';
 import Relatorios from './pages/Relatorios';
 import Perfil from './pages/Perfil';
+import Empresas from './pages/Empresas';
+import Clientes from './pages/Cliente';
+import Unidades from './pages/Unidade';
+
 
 import EmpresaLayout from './layouts/EmpresaLayout';
 
@@ -30,6 +34,9 @@ function App() {
 
         {/* Central de empresas */}
         <Route path="/" element={<Home />} />
+
+        {/* Gerenciamento e cadastro de empresas */}
+        <Route path="/empresas" element={<Empresas />} />
 
         {/* Perfil do usuário */}
         <Route path="/perfil" element={<Perfil />} />
@@ -55,6 +62,13 @@ function App() {
           <Route path="avaliacoes" element={<Avaliacoes />} />
 
           <Route path="relatorios" element={<Relatorios />} />
+
+          <Route path="empresas" element={<Empresas />} />
+
+          <Route path="cadastro/clientes" element={<Clientes />} />
+
+          <Route path="cadastro/unidades" element={<Unidades />} />
+
         </Route>
 
         {/* Página não encontrada */}

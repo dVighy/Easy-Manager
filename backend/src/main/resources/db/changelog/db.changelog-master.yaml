@@ -9,3 +9,18 @@ databaseChangeLog:
             relativeToChangelogFile: true
             splitStatements: true
             stripComments: false
+  - changeSet:
+      id: 002-criar_usuario_empresa
+      author: easymanager
+      preConditions:
+        - onFail: MARK_RAN
+          onError: MARK_RAN
+        - not:
+            - tableExists:
+                tableName: usuario_empresa
+      changes:
+        - sqlFile:
+            path: ../changes/002-criar_usuario_empresa.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: false

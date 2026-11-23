@@ -1,4 +1,5 @@
 package com.easymanager.model;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -8,60 +9,76 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-@Entity @Table(name="unidade")
+@Entity
+@Table(name = "unidade")
 public class Unidade {
 
     @Id
-    @GeneratedValue(strategy=GenerationType.IDENTITY) 
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_unidade")
     private Long id;
 
-    @Column(nullable=false, name="nome") private String nome;
-    @Column (name="endereco") private String endereco;
-    @Column (name="ativo") private Boolean ativo;
-    @Column (name="telefone") private String telefone;
-
-    @ManyToOne(optional=false) 
-    @JoinColumn(name="id_empresa") 
+    @ManyToOne
+    @JoinColumn(name = "id_empresa", nullable = false)
     private Empresa empresa;
-    
-    public Unidade(){}
-    
-    public Long getId(){
+
+    @Column(nullable = false)
+    private String nome;
+
+    private String endereco;
+
+    private String telefone;
+
+    @Column(nullable = false)
+    private Boolean ativo = true;
+
+    public Unidade() {}
+
+    public Long getId() {
         return id;
     }
-    public void setId(Long id){
-        this.id=id;
+
+    public void setId(Long id) {
+        this.id = id;
     }
-    public String getNome(){
+
+    public Empresa getEmpresa() {
+        return empresa;
+    }
+
+    public void setEmpresa(Empresa empresa) {
+        this.empresa = empresa;
+    }
+
+    public String getNome() {
         return nome;
     }
-    public void setNome(String v){
-        this.nome=v;
+
+    public void setNome(String nome) {
+        this.nome = nome;
     }
+
+    public String getEndereco() {
+        return endereco;
+    }
+
+    public void setEndereco(String endereco) {
+        this.endereco = endereco;
+    }
+
+    public String getTelefone() {
+        return telefone;
+    }
+
+    public void setTelefone(String telefone) {
+        this.telefone = telefone;
+    }
+
     public Boolean getAtivo() {
         return ativo;
     }
 
     public void setAtivo(Boolean ativo) {
         this.ativo = ativo;
-    }
-    public String getEndereco(){
-        return endereco;
-    }
-    public void setEndereco(String v){
-        this.endereco=v;
-    }
-    public String getTelefone(){
-        return telefone;
-    }
-    public void setTelefone(String v){
-        this.telefone=v;
-    }
-    public Empresa getEmpresa(){
-        return empresa;
-    }
-    public void setEmpresa(Empresa v){
-        this.empresa=v;
     }
 }

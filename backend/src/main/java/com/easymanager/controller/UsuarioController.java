@@ -52,4 +52,14 @@ public class UsuarioController {
     public void excluir(@PathVariable Long id) { 
         service.excluir(id); 
     }
+
+    @GetMapping("/{usuarioId}/empresa/{empresaId}/perfil")
+    public java.util.Map<String, String> buscarPerfil(
+            @PathVariable Long usuarioId,
+            @PathVariable Long empresaId
+    ) {
+        String perfil = service.buscarPerfilNaEmpresa(usuarioId, empresaId);
+
+        return java.util.Map.of("perfil", perfil);
+    }
 }

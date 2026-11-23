@@ -1,42 +1,61 @@
 package com.easymanager.controller;
+
+import java.util.List;
+
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.easymanager.model.Cliente;
 import com.easymanager.service.ClienteService;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/clientes")
 @CrossOrigin(origins = "http://localhost:5173")
 public class ClienteController {
-    private final ClienteService service;
-    public ClienteController(ClienteService service) {
-        this.service = service;
+
+    private final ClienteService clienteService;
+
+    public ClienteController(ClienteService clienteService) {
+        this.clienteService = clienteService;
     }
 
-    @GetMapping public List<Cliente> listar() { 
-        return service.listarTodos(); 
+    @GetMapping
+    public List<Cliente> listarTodos() {
+        return clienteService.listarTodos();
     }
-    
-    @GetMapping("/{id}") public Cliente buscar(@PathVariable Long id) { 
-        return service.buscarPorId(id); 
+
+    @GetMapping("/{id}")
+    public Cliente buscarPorId(@PathVariable Long id) {
+        return clienteService.buscarPorId(id);
     }
-    
-    @GetMapping("/empresa/{empresaId}") public List<Cliente> porEmpresa(@PathVariable Long empresaId) {
-        return service.listarPorEmpresa(empresaId);
+
+    @GetMapping("/empresa/{empresaId}")
+    public List<Cliente> listarPorEmpresa(
+            @PathVariable Long empresaId) {
+        return clienteService.listarPorEmpresa(empresaId);
     }
-    
-    @PostMapping @ResponseStatus(HttpStatus.CREATED)
+
+    @PostMapping
     public Cliente cadastrar(@RequestBody Cliente cliente) {
-        return service.cadastrar(cliente); 
+        return clienteService.cadastrar(cliente);
     }
-    
-    @PutMapping("/{id}") public Cliente atualizar(@PathVariable Long id, @RequestBody Cliente dados) {
-        return service.atualizar(id, dados);
+
+    @PutMapping("/{id}")
+    public Cliente atualizar(
+            @PathVariable Long id,
+            @RequestBody Cliente cliente) {
+        return clienteService.atualizar(id, cliente);
     }
-    
-    @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
+
+    @DeleteMapping("/{id}")
     public void excluir(@PathVariable Long id) {
-        service.excluir(id);
+        clienteService.excluir(id);
     }
 }

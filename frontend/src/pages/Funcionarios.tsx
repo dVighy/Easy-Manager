@@ -1,348 +1,490 @@
-
-import {useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 
 import {
+  Alert,
   Avatar,
   Box,
+  Button,
   Chip,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
+  IconButton,
   InputAdornment,
   MenuItem,
   Paper,
+  Snackbar,
   TextField,
   Typography,
 } from '@mui/material';
 
 import {
-  BriefcaseBusiness,
-  Clock,
+  UserPlus,
   Search,
-  UserCheck,
   Users,
+  UserCheck,
+  UserX,
+  Pencil,
+  Trash2,
   X,
 } from 'lucide-react';
+
+interface Empresa {
+  id: number;
+  nome?: string;
+}
 
 interface Funcionario {
   id: number;
   nome: string;
   cargo: string;
-  email: string | null;
-  telefone: string | null;
+  email?: string | null;
+  telefone?: string | null;
   ativo: boolean;
-  empresa: {
-    id: number;
-    nome: string;
-  };
+  empresa?: Empresa;
 }
 
-// const funcionarios: Funcionario[] = [
-//   {
-//     id: 1,
-//     nome: 'Carlos Oliveira',
-//     cargo: 'Operador de estacionamento',
-//     departamento: 'Operacional',
-//     status: 'Em atividade',
-//     avaliacao: 4.8,
-//     inicial: 'C',
-//     email: 'carlos@estacionafacil.com',
-//     telefone: '(12) 99999-1001',
-//   },
-//   {
-//     id: 2,
-//     nome: 'Mariana Santos',
-//     cargo: 'Atendente',
-//     departamento: 'Atendimento',
-//     status: 'Em atividade',
-//     avaliacao: 4.9,
-//     inicial: 'M',
-//     email: 'mariana@estacionafacil.com',
-//     telefone: '(12) 99999-1002',
-//   },
-//   {
-//     id: 3,
-//     nome: 'Lucas Ferreira',
-//     cargo: 'Operador de estacionamento',
-//     departamento: 'Operacional',
-//     status: 'Em intervalo',
-//     avaliacao: 4.5,
-//     inicial: 'L',
-//     email: 'lucas@estacionafacil.com',
-//     telefone: '(12) 99999-1003',
-//   },
-//   {
-//     id: 4,
-//     nome: 'Ana Carolina Lima',
-//     cargo: 'Supervisora',
-//     departamento: 'Gestão',
-//     status: 'Em atividade',
-//     avaliacao: 4.9,
-//     inicial: 'A',
-//     email: 'ana@estacionafacil.com',
-//     telefone: '(12) 99999-1004',
-//   },
-//   {
-//     id: 5,
-//     nome: 'Pedro Almeida',
-//     cargo: 'Atendente',
-//     departamento: 'Atendimento',
-//     status: 'Em atividade',
-//     avaliacao: 4.4,
-//     inicial: 'P',
-//     email: 'pedro@estacionafacil.com',
-//     telefone: '(12) 99999-1005',
-//   },
-//   {
-//     id: 6,
-//     nome: 'Juliana Costa',
-//     cargo: 'Operadora de estacionamento',
-//     departamento: 'Operacional',
-//     status: 'Em intervalo',
-//     avaliacao: 4.7,
-//     inicial: 'J',
-//     email: 'juliana@estacionafacil.com',
-//     telefone: '(12) 99999-1006',
-//   },
-//   {
-//     id: 7,
-//     nome: 'Rafael Mendes',
-//     cargo: 'Auxiliar administrativo',
-//     departamento: 'Administrativo',
-//     status: 'Em atividade',
-//     avaliacao: 4.3,
-//     inicial: 'R',
-//     email: 'rafael@estacionafacil.com',
-//     telefone: '(12) 99999-1007',
-//   },
-//   {
-//     id: 8,
-//     nome: 'Beatriz Souza',
-//     cargo: 'Atendente',
-//     departamento: 'Atendimento',
-//     status: 'Em atividade',
-//     avaliacao: 4.8,
-//     inicial: 'B',
-//     email: 'beatriz@estacionafacil.com',
-//     telefone: '(12) 99999-1008',
-//   },
-// ];
+interface FormularioFuncionario {
+  nome: string;
+  cargo: string;
+  email: string;
+  telefone: string;
+  ativo: boolean;
+}
 
+const API = 'http://localhost:8080/api/funcionarios';
+
+const formularioInicial: FormularioFuncionario = {
+  nome: '',
+  cargo: '',
+  email: '',
+  telefone: '',
+  ativo: true,
+};
 
 export default function Funcionarios() {
-  const { empresaId } = useParams<{ empresaId: string }>();
+  const { empresaId } = useParams();
+
+  const idEmpresa = Number(empresaId);
 
   const [funcionarios, setFuncionarios] = useState<Funcionario[]>([]);
-  const [busca, setBusca] = useState('');
-  const [filtro, setFiltro] = useState('Todos');
-  const [selecionado, setSelecionado] = useState<Funcionario | null>(null);
-
-  const [carregando, setCarregando] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
 
-  useEffect(() => {
-    async function carregarFuncionarios() {
-      try {
-        setCarregando(true);
-        setErro('');
+  const [busca, setBusca] = useState('');
+  const [filtroStatus, setFiltroStatus] = useState('todos');
 
-        const rota = empresaId
-          ? `http://localhost:8080/api/funcionarios/empresa/${empresaId}`
-          : 'http://localhost:8080/api/funcionarios';
+  const [modalAberto, setModalAberto] = useState(false);
+  const [editando, setEditando] = useState<Funcionario | null>(null);
 
-        const resposta = await fetch(rota);
+  const [formulario, setFormulario] =
+    useState<FormularioFuncionario>(formularioInicial);
 
-        if (!resposta.ok) {
-          throw new Error('Não foi possível carregar os funcionários.');
-        }
+  const [salvando, setSalvando] = useState(false);
 
-        const dados: Funcionario[] = await resposta.json();
+  const [snackbar, setSnackbar] = useState({
+    aberto: false,
+    mensagem: '',
+    tipo: 'success' as 'success' | 'error',
+  });
 
-        setFuncionarios(dados);
-      } catch (error) {
-        setErro(
-          error instanceof Error
-            ? error.message
-            : 'Erro ao conectar com o servidor.'
-        );
-      } finally {
-        setCarregando(false);
+  async function carregarFuncionarios() {
+    setLoading(true);
+    setErro('');
+
+    try {
+      if (!Number.isFinite(idEmpresa) || idEmpresa <= 0) {
+        throw new Error('ID da empresa inválido.');
       }
-    }
 
+      const response = await fetch(`${API}/empresa/${idEmpresa}`);
+
+      if (!response.ok) {
+        throw new Error('Não foi possível carregar os funcionários.');
+      }
+
+      const dados: Funcionario[] = await response.json();
+
+      setFuncionarios(dados);
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao carregar funcionários.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
     carregarFuncionarios();
   }, [empresaId]);
 
   const funcionariosFiltrados = useMemo(() => {
-    return funcionarios.filter((item) => {
+    return funcionarios.filter((funcionario) => {
+      const termo = busca.toLowerCase();
+
       const correspondeBusca =
-        item.nome.toLowerCase().includes(busca.toLowerCase()) ||
-        item.cargo.toLowerCase().includes(busca.toLowerCase());
+        funcionario.nome?.toLowerCase().includes(termo) ||
+        funcionario.cargo?.toLowerCase().includes(termo) ||
+        funcionario.email?.toLowerCase().includes(termo);
 
-      const status = item.ativo ? 'Em atividade' : 'Inativo';
+      const correspondeStatus =
+        filtroStatus === 'todos' ||
+        (filtroStatus === 'ativos' && funcionario.ativo) ||
+        (filtroStatus === 'inativos' && !funcionario.ativo);
 
-      const correspondeFiltro =
-        filtro === 'Todos' || status === filtro;
-
-      return correspondeBusca && correspondeFiltro;
+      return correspondeBusca && correspondeStatus;
     });
-  }, [funcionarios, busca, filtro]);
+  }, [funcionarios, busca, filtroStatus]);
 
-  const totalFuncionarios = funcionarios.length;
+  const totalAtivos = funcionarios.filter((f) => f.ativo).length;
+  const totalInativos = funcionarios.filter((f) => !f.ativo).length;
 
-  const totalAtivos = funcionarios.filter(
-    (item) => item.ativo
-  ).length;
+  function abrirCadastro() {
+    setEditando(null);
+    setFormulario(formularioInicial);
+    setModalAberto(true);
+  }
 
-  const totalInativos = totalFuncionarios - totalAtivos;
+  function abrirEdicao(funcionario: Funcionario) {
+    setEditando(funcionario);
 
-  const indicadores = [
-    {
-      titulo: 'Total de funcionários',
-      valor: totalFuncionarios.toString(),
-      descricao: 'Equipe cadastrada',
-      icon: Users,
-      cor: '#3977C5',
-    },
-    {
-      titulo: 'Em atividade',
-      valor: totalAtivos.toString(),
-      descricao: 'Funcionários ativos',
-      icon: UserCheck,
-      cor: '#16865B',
-    },
-    {
-      titulo: 'Inativos',
-      valor: totalInativos.toString(),
-      descricao: 'Funcionários inativos',
-      icon: Clock,
-      cor: '#D97706',
-    },
-    {
-      titulo: 'Empresas',
-      valor: new Set(
-        funcionarios.map((item) => item.empresa?.id).filter(Boolean)
-      ).size.toString(),
-      descricao: 'Empresas com funcionários',
-      icon: BriefcaseBusiness,
-      cor: '#8057B7',
-    },
-  ];
+    setFormulario({
+      nome: funcionario.nome ?? '',
+      cargo: funcionario.cargo ?? '',
+      email: funcionario.email ?? '',
+      telefone: funcionario.telefone ?? '',
+      ativo: funcionario.ativo,
+    });
+
+    setModalAberto(true);
+  }
+
+  function fecharModal() {
+    setModalAberto(false);
+    setEditando(null);
+    setFormulario(formularioInicial);
+  }
+
+  function mostrarMensagem(
+    mensagem: string,
+    tipo: 'success' | 'error' = 'success',
+  ) {
+    setSnackbar({
+      aberto: true,
+      mensagem,
+      tipo,
+    });
+  }
+
+  async function salvarFuncionario(event: FormEvent) {
+    event.preventDefault();
+
+    if (!formulario.nome.trim() || !formulario.cargo.trim()) {
+      mostrarMensagem('Preencha o nome e o cargo.', 'error');
+      return;
+    }
+
+    setSalvando(true);
+
+    const payload = {
+      nome: formulario.nome.trim(),
+      cargo: formulario.cargo.trim(),
+      email: formulario.email.trim() || null,
+      telefone: formulario.telefone.trim() || null,
+      ativo: formulario.ativo,
+      empresa: {
+        id: idEmpresa,
+      },
+    };
+
+    try {
+      const url = editando
+        ? `${API}/${editando.id}`
+        : API;
+
+      const response = await fetch(url, {
+        method: editando ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const mensagem = await response.text();
+
+        throw new Error(
+          mensagem || 'Não foi possível salvar o funcionário.',
+        );
+      }
+
+      fecharModal();
+
+      await carregarFuncionarios();
+
+      mostrarMensagem(
+        editando
+          ? 'Funcionário atualizado com sucesso!'
+          : 'Funcionário cadastrado com sucesso!',
+      );
+    } catch (error) {
+      mostrarMensagem(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao salvar funcionário.',
+        'error',
+      );
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function alterarStatus(funcionario: Funcionario) {
+    try {
+      const novoStatus = !funcionario.ativo;
+
+      const response = await fetch(
+        `${API}/${funcionario.id}/status?ativo=${novoStatus}`,
+        {
+          method: 'PATCH',
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error('Não foi possível alterar o status.');
+      }
+
+      await carregarFuncionarios();
+
+      mostrarMensagem(
+        novoStatus
+          ? 'Funcionário ativado!'
+          : 'Funcionário desativado!',
+      );
+    } catch (error) {
+      mostrarMensagem(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao alterar status.',
+        'error',
+      );
+    }
+  }
+
+  async function excluirFuncionario(funcionario: Funcionario) {
+    const confirmar = window.confirm(
+      `Deseja realmente excluir ${funcionario.nome}?`,
+    );
+
+    if (!confirmar) return;
+
+    try {
+      const response = await fetch(`${API}/${funcionario.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Não foi possível excluir o funcionário.');
+      }
+
+      await carregarFuncionarios();
+
+      mostrarMensagem('Funcionário excluído com sucesso!');
+    } catch (error) {
+      mostrarMensagem(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao excluir funcionário.',
+        'error',
+      );
+    }
+  }
+
+  function iniciais(nome: string) {
+    return nome
+      .trim()
+      .split(' ')
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((parte) => parte[0].toUpperCase())
+      .join('');
+  }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: '#f5f7fb', minHeight: '100%' }}>
+      {/* CABEÇALHO */}
 
-      {/* Cabeçalho */}
-      <Box>
-        <Typography variant="h4" fontWeight={700} color="#1E1E2F">
-          Gestão de Funcionários
-        </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', md: 'center' },
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 2,
+          mb: 4,
+        }}
+      >
+        <Box>
+          <Typography variant="h4" fontWeight={700} color="#172b4d">
+            Funcionários
+          </Typography>
 
-        <Typography color="text.secondary" mt={0.5}>
-          Acompanhe a equipe, suas funções e indicadores de desempenho.
-        </Typography>
+          <Typography color="text.secondary" mt={1}>
+            Gerencie os colaboradores da empresa.
+          </Typography>
+        </Box>
+
+        <Button
+          variant="contained"
+          startIcon={<UserPlus size={18} />}
+          onClick={abrirCadastro}
+          sx={{
+            bgcolor: '#2563eb',
+            borderRadius: 2,
+            textTransform: 'none',
+            px: 3,
+            py: 1.2,
+            fontWeight: 600,
+            boxShadow: 'none',
+            '&:hover': {
+              bgcolor: '#1d4ed8',
+              boxShadow: 'none',
+            },
+          }}
+        >
+          Adicionar funcionário
+        </Button>
       </Box>
 
-      {carregando && (
-        <Typography color="text.secondary">
-          Carregando funcionários...
-        </Typography>
-      )}
+      {/* INDICADORES */}
 
-      {erro && (
-        <Typography color="error">
-          {erro}
-        </Typography>
-      )}
-
-      {/* Indicadores */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: {
             xs: '1fr',
-            sm: 'repeat(2, 1fr)',
-            lg: 'repeat(4, 1fr)',
+            sm: 'repeat(3, 1fr)',
           },
           gap: 2,
+          mb: 3,
         }}
       >
-        {indicadores.map((item) => {
-          const Icon = item.icon;
+        <Paper
+          elevation={0}
+          sx={{ p: 3, borderRadius: 3, border: '1px solid #e5eaf1' }}
+        >
+          <Box display="flex" justifyContent="space-between">
+            <Box>
+              <Typography color="text.secondary" variant="body2">
+                Total de funcionários
+              </Typography>
 
-          return (
-            <Paper
-              key={item.titulo}
-              elevation={0}
+              <Typography variant="h4" fontWeight={700} mt={1}>
+                {funcionarios.length}
+              </Typography>
+            </Box>
+
+            <Avatar
               sx={{
-                p: 2.5,
-                borderRadius: 3,
-                border: '1px solid #E5EAF1',
+                bgcolor: '#e8f0ff',
+                color: '#2563eb',
+                width: 48,
+                height: 48,
               }}
             >
-              <Box display="flex" justifyContent="space-between">
-                <Typography color="text.secondary" fontSize={13}>
-                  {item.titulo}
-                </Typography>
+              <Users size={22} />
+            </Avatar>
+          </Box>
+        </Paper>
 
-                <Box
-                  sx={{
-                    bgcolor: `${item.cor}15`,
-                    color: item.cor,
-                    p: 1,
-                    borderRadius: 2,
-                    display: 'flex',
-                  }}
-                >
-                  <Icon size={21} />
-                </Box>
-              </Box>
-
-              <Typography
-                variant="h4"
-                fontWeight={700}
-                color="#1E1E2F"
-                mt={1.5}
-              >
-                {item.valor}
+        <Paper
+          elevation={0}
+          sx={{ p: 3, borderRadius: 3, border: '1px solid #e5eaf1' }}
+        >
+          <Box display="flex" justifyContent="space-between">
+            <Box>
+              <Typography color="text.secondary" variant="body2">
+                Funcionários ativos
               </Typography>
 
-              <Typography color="text.secondary" fontSize={12} mt={0.5}>
-                {item.descricao}
+              <Typography variant="h4" fontWeight={700} mt={1}>
+                {totalAtivos}
               </Typography>
-            </Paper>
-          );
-        })}
+            </Box>
+
+            <Avatar
+              sx={{
+                bgcolor: '#e6f7ee',
+                color: '#16a34a',
+                width: 48,
+                height: 48,
+              }}
+            >
+              <UserCheck size={22} />
+            </Avatar>
+          </Box>
+        </Paper>
+
+        <Paper
+          elevation={0}
+          sx={{ p: 3, borderRadius: 3, border: '1px solid #e5eaf1' }}
+        >
+          <Box display="flex" justifyContent="space-between">
+            <Box>
+              <Typography color="text.secondary" variant="body2">
+                Funcionários inativos
+              </Typography>
+
+              <Typography variant="h4" fontWeight={700} mt={1}>
+                {totalInativos}
+              </Typography>
+            </Box>
+
+            <Avatar
+              sx={{
+                bgcolor: '#fff1f2',
+                color: '#dc2626',
+                width: 48,
+                height: 48,
+              }}
+            >
+              <UserX size={22} />
+            </Avatar>
+          </Box>
+        </Paper>
       </Box>
 
-      {/* Listagem */}
+      {/* LISTAGEM */}
+
       <Paper
         elevation={0}
         sx={{
           borderRadius: 3,
-          border: '1px solid #E5EAF1',
+          border: '1px solid #e5eaf1',
           overflow: 'hidden',
         }}
       >
-        <Box p={3}>
-          <Typography fontWeight={700} color="#1E1E2F">
-            Equipe de funcionários
-          </Typography>
-
-          <Typography color="text.secondary" fontSize={13}>
-            Consulte os integrantes e suas informações.
-          </Typography>
-        </Box>
-
-        <Box px={3} pb={2} display="flex" gap={2} flexWrap="wrap">
+        <Box
+          sx={{
+            p: 3,
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            gap: 2,
+            justifyContent: 'space-between',
+          }}
+        >
           <TextField
             size="small"
             placeholder="Buscar funcionário..."
             value={busca}
             onChange={(e) => setBusca(e.target.value)}
-            sx={{ flex: 1, minWidth: 220 }}
+            sx={{ maxWidth: { md: 380 }, width: '100%' }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -353,230 +495,398 @@ export default function Funcionarios() {
           />
 
           <TextField
-            select
             size="small"
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value)}
-            sx={{ width: 170 }}
+            select
+            label="Status"
+            value={filtroStatus}
+            onChange={(e) => setFiltroStatus(e.target.value)}
+            sx={{ minWidth: 160 }}
           >
-            <MenuItem value="Todos">Todos</MenuItem>
-            <MenuItem value="Em atividade">Em atividade</MenuItem>
-            <MenuItem value="Inativo">Inativo</MenuItem>
+            <MenuItem value="todos">Todos</MenuItem>
+            <MenuItem value="ativos">Ativos</MenuItem>
+            <MenuItem value="inativos">Inativos</MenuItem>
           </TextField>
         </Box>
 
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              md: 'repeat(2, 1fr)',
-            },
-            gap: 2,
-            p: 3,
-          }}
-        >
-          {funcionariosFiltrados.map((item) => (
-            <Paper
-              key={item.id}
-              elevation={0}
-              onClick={() => setSelecionado(item)}
-              sx={{
-                p: 2,
-                border: '1px solid #E5EAF1',
-                borderRadius: 3,
-                cursor: 'pointer',
-                transition: '0.2s',
-                '&:hover': {
-                  borderColor: '#3977C5',
-                  bgcolor: '#F8FAFD',
-                },
-              }}
-            >
-              <Box display="flex" alignItems="center" gap={2}>
-                <Avatar
+        <Divider />
+
+        {loading ? (
+          <Box p={4}>
+            <Typography color="text.secondary">
+              Carregando funcionários...
+            </Typography>
+          </Box>
+        ) : erro ? (
+          <Box p={3}>
+            <Alert severity="error">{erro}</Alert>
+
+            <Button onClick={carregarFuncionarios} sx={{ mt: 2 }}>
+              Tentar novamente
+            </Button>
+          </Box>
+        ) : funcionariosFiltrados.length === 0 ? (
+          <Box
+            sx={{
+              py: 7,
+              px: 3,
+              textAlign: 'center',
+            }}
+          >
+            <Users size={40} color="#94a3b8" />
+
+            <Typography fontWeight={600} mt={2}>
+              Nenhum funcionário encontrado
+            </Typography>
+
+            <Typography color="text.secondary" mt={1}>
+              {funcionarios.length === 0
+                ? 'Cadastre o primeiro funcionário desta empresa.'
+                : 'Tente alterar os filtros da busca.'}
+            </Typography>
+
+            {funcionarios.length === 0 && (
+              <Button
+                variant="contained"
+                startIcon={<UserPlus size={18} />}
+                onClick={abrirCadastro}
+                sx={{ mt: 3, textTransform: 'none' }}
+              >
+                Cadastrar funcionário
+              </Button>
+            )}
+          </Box>
+        ) : (
+          <Box sx={{ overflowX: 'auto' }}>
+            <Box sx={{ minWidth: 750 }}>
+              {/* CABEÇALHO DA TABELA */}
+
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: '2fr 1.5fr 2fr 1.2fr 1fr',
+                  bgcolor: '#f8fafc',
+                  px: 3,
+                  py: 2,
+                  gap: 2,
+                }}
+              >
+                {['Funcionário', 'Cargo', 'Contato', 'Status', 'Ações'].map(
+                  (titulo) => (
+                    <Typography
+                      key={titulo}
+                      variant="body2"
+                      fontWeight={600}
+                      color="text.secondary"
+                    >
+                      {titulo}
+                    </Typography>
+                  ),
+                )}
+              </Box>
+
+              {/* LINHAS */}
+
+              {funcionariosFiltrados.map((funcionario) => (
+                <Box
+                  key={funcionario.id}
                   sx={{
-                    bgcolor: '#E8F1FC',
-                    color: '#3977C5',
-                    width: 48,
-                    height: 48,
-                    fontWeight: 700,
+                    display: 'grid',
+                    gridTemplateColumns: '2fr 1.5fr 2fr 1fr 1fr',
+                    px: 3,
+                    py: 2,
+                    gap: 2,
+                    alignItems: 'center',
+                    borderTop: '1px solid #edf0f5',
+                    '&:hover': {
+                      bgcolor: '#fafcff',
+                    },
                   }}
                 >
-                  {item.nome.charAt(0).toUpperCase()}
-                </Avatar>
+                  {/* FUNCIONÁRIO */}
 
-                <Box flex={1} minWidth={0}>
-                  <Typography fontWeight={700} color="#1E1E2F">
-                    {item.nome}
+                  <Box display="flex" alignItems="center" gap={1.5}>
+                    <Avatar
+                      sx={{
+                        bgcolor: '#e8f0ff',
+                        color: '#2563eb',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {iniciais(funcionario.nome || '?')}
+                    </Avatar>
+
+                    <Box>
+                      <Typography fontWeight={600}>
+                        {funcionario.nome}
+                      </Typography>
+
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                      >
+                        {funcionario.empresa?.nome || 'Empresa'}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  {/* CARGO */}
+
+                  <Typography variant="body2">
+                    {funcionario.cargo || 'Não informado'}
                   </Typography>
 
-                  <Typography color="text.secondary" fontSize={12}>
-                    {item.cargo}
-                  </Typography>
+                  {/* CONTATO */}
+
+                  <Box>
+                    <Typography variant="body2">
+                      {funcionario.email || 'Email não informado'}
+                    </Typography>
+
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                    >
+                      {funcionario.telefone || 'Telefone não informado'}
+                    </Typography>
+                  </Box>
+
+                  {/* STATUS */}
+
+                  <Chip
+                    label={funcionario.ativo ? 'Ativo' : 'Inativo'}
+                    size="small"
+                    sx={{
+                      width: 'fit-content',
+                      bgcolor: funcionario.ativo ? '#e6f7ee' : '#fff1f2',
+                      color: funcionario.ativo ? '#15803d' : '#dc2626',
+                      fontWeight: 600,
+                    }}
+                  />
+
+                  {/* AÇÕES */}
+
+                  <Box display="flex" gap={0.5}>
+                    <IconButton
+                      size="small"
+                      title="Editar"
+                      onClick={() => abrirEdicao(funcionario)}
+                    >
+                      <Pencil size={18} />
+                    </IconButton>
+
+                    <IconButton
+                      size="small"
+                      title={
+                        funcionario.ativo
+                          ? 'Desativar'
+                          : 'Ativar'
+                      }
+                      onClick={() => alterarStatus(funcionario)}
+                    >
+                      {funcionario.ativo ? (
+                        <UserX size={18} />
+                      ) : (
+                        <UserCheck size={18} />
+                      )}
+                    </IconButton>
+
+                    <IconButton
+                      size="small"
+                      title="Excluir"
+                      onClick={() => excluirFuncionario(funcionario)}
+                      sx={{ color: '#dc2626' }}
+                    >
+                      <Trash2 size={18} />
+                    </IconButton>
+                  </Box>
                 </Box>
-
-               <Chip
-                  label={item.ativo ? 'Em atividade' : 'Inativo'}
-                  size="small"
-                  color={item.ativo ? 'success' : 'default'}
-                />
-              </Box>
-
-              <Divider sx={{ my: 2 }} />
-
-              <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Box display="flex" alignItems="center" gap={0.7}>
-                  <BriefcaseBusiness size={15} color="#64748B" />
-
-                  <Typography color="text.secondary" fontSize={12}>
-                    {item.empresa?.nome ?? 'Empresa não informada'}
-                  </Typography>
-                </Box>
-
-              </Box>
-
-              <Typography
-                fontSize={12}
-                color="#3977C5"
-                fontWeight={600}
-                mt={2}
-              >
-                Ver detalhes →
-              </Typography>
-            </Paper>
-          ))}
-
-          {funcionariosFiltrados.length === 0 && (
-            <Box gridColumn="1 / -1" textAlign="center" py={4}>
-              <Typography color="text.secondary">
-                Nenhum funcionário encontrado.
-              </Typography>
+              ))}
             </Box>
-          )}
-        </Box>
+          </Box>
+        )}
 
-        <Box px={3} py={2} borderTop="1px solid #E5EAF1">
-          <Typography color="text.secondary" fontSize={12}>
-            Exibindo {funcionariosFiltrados.length} de {funcionarios.length} funcionários.
-          </Typography>
-        </Box>
+        {/* RODAPÉ */}
+
+        {!loading && !erro && funcionariosFiltrados.length > 0 && (
+          <Box
+            sx={{
+              px: 3,
+              py: 2,
+              bgcolor: '#fafbfd',
+              borderTop: '1px solid #edf0f5',
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Exibindo {funcionariosFiltrados.length} de {funcionarios.length} funcionários
+            </Typography>
+          </Box>
+        )}
       </Paper>
 
-      {/* Detalhes do funcionário */}
+      {/* MODAL DE CADASTRO / EDIÇÃO */}
+
       <Dialog
-        open={Boolean(selecionado)}
-        onClose={() => setSelecionado(null)}
+        open={modalAberto}
+        onClose={fecharModal}
         fullWidth
         maxWidth="sm"
       >
-        {selecionado && (
-          <>
-            <DialogTitle
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-            >
-              Informações do funcionário
+        <DialogTitle
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <Box>
+            <Typography variant="h6" fontWeight={700}>
+              {editando
+                ? 'Editar funcionário'
+                : 'Novo funcionário'}
+            </Typography>
 
-              <Box
-                component="button"
-                onClick={() => setSelecionado(null)}
-                sx={{
-                  border: 0,
-                  bgcolor: 'transparent',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  color: '#64748B',
-                }}
-              >
-                <X size={20} />
-              </Box>
-            </DialogTitle>
+            <Typography variant="body2" color="text.secondary">
+              Preencha as informações do colaborador.
+            </Typography>
+          </Box>
 
-            <DialogContent>
-              <Box display="flex" alignItems="center" gap={2} mb={3} mt={1}>
-                <Avatar
-                  sx={{
-                    width: 58,
-                    height: 58,
-                    bgcolor: '#E8F1FC',
-                    color: '#3977C5',
-                    fontSize: 22,
-                    fontWeight: 700,
-                  }}
+          <IconButton onClick={fecharModal}>
+            <X size={20} />
+          </IconButton>
+        </DialogTitle>
+
+        <Divider />
+
+        <Box component="form" onSubmit={salvarFuncionario}>
+          <DialogContent sx={{ pt: 3 }}>
+            <Box display="flex" flexDirection="column" gap={2.5}>
+              <TextField
+                label="Nome completo"
+                required
+                fullWidth
+                value={formulario.nome}
+                onChange={(e) =>
+                  setFormulario({
+                    ...formulario,
+                    nome: e.target.value,
+                  })
+                }
+              />
+
+              <TextField
+                label="Cargo"
+                required
+                fullWidth
+                value={formulario.cargo}
+                onChange={(e) =>
+                  setFormulario({
+                    ...formulario,
+                    cargo: e.target.value,
+                  })
+                }
+              />
+
+              <TextField
+                label="Email"
+                type="email"
+                fullWidth
+                value={formulario.email}
+                onChange={(e) =>
+                  setFormulario({
+                    ...formulario,
+                    email: e.target.value,
+                  })
+                }
+              />
+
+              <TextField
+                label="Telefone"
+                fullWidth
+                value={formulario.telefone}
+                onChange={(e) =>
+                  setFormulario({
+                    ...formulario,
+                    telefone: e.target.value,
+                  })
+                }
+              />
+
+              {editando && (
+                <TextField
+                  label="Status"
+                  select
+                  fullWidth
+                  value={formulario.ativo ? 'true' : 'false'}
+                  onChange={(e) =>
+                    setFormulario({
+                      ...formulario,
+                      ativo: e.target.value === 'true',
+                    })
+                  }
                 >
-                  {selecionado.nome.charAt(0).toUpperCase()}
-                </Avatar>
+                  <MenuItem value="true">Ativo</MenuItem>
+                  <MenuItem value="false">Inativo</MenuItem>
+                </TextField>
+              )}
+            </Box>
+          </DialogContent>
 
-                <Box>
-                  <Typography fontWeight={700} fontSize={18}>
-                    {selecionado.nome}
-                  </Typography>
+          <DialogActions sx={{ px: 3, pb: 3 }}>
+            <Button
+              onClick={fecharModal}
+              color="inherit"
+              sx={{ textTransform: 'none' }}
+            >
+              Cancelar
+            </Button>
 
-                  <Typography color="text.secondary" fontSize={13}>
-                    {selecionado.cargo}
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Divider sx={{ mb: 2 }} />
-
-              <Box display="flex" flexDirection="column" gap={2}>
-                <Box>
-                  <Typography color="text.secondary" fontSize={12}>
-                    Departamento
-                  </Typography>
-                  <Typography fontWeight={600}>
-                    {selecionado.empresa?.nome ?? 'Não informada'}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography color="text.secondary" fontSize={12}>
-                    Situação atual
-                  </Typography>
-                  <Chip
-                    label={selecionado.ativo ? 'Em atividade' : 'Inativo'}
-                    size="small"
-                    color={selecionado.ativo ? 'success' : 'warning'}
-                  />
-                </Box>
-
-                <Box>
-                  <Typography color="text.secondary" fontSize={12}>
-                    E-mail
-                  </Typography>
-                  <Typography fontWeight={600}>
-                    {selecionado.email}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography color="text.secondary" fontSize={12}>
-                    Telefone
-                  </Typography>
-                  <Typography fontWeight={600}>
-                    {selecionado.telefone}
-                  </Typography>
-                </Box>
-
-              </Box>
-
-              <Box
-                mt={3}
-                p={2}
-                bgcolor="#F1F7FF"
-                borderRadius={2}
-              >
-                <Typography fontSize={12} color="text.secondary">
-                  As informações e os indicadores desta página são demonstrativos. Não há integração com registros reais de funcionários.
-                </Typography>
-              </Box>
-            </DialogContent>
-          </>
-        )}
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={salvando}
+              sx={{
+                textTransform: 'none',
+                bgcolor: '#2563eb',
+                boxShadow: 'none',
+                '&:hover': {
+                  bgcolor: '#1d4ed8',
+                  boxShadow: 'none',
+                },
+              }}
+            >
+              {salvando
+                ? 'Salvando...'
+                : editando
+                  ? 'Salvar alterações'
+                  : 'Cadastrar funcionário'}
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
+
+      {/* FEEDBACK */}
+
+      <Snackbar
+        open={snackbar.aberto}
+        autoHideDuration={4000}
+        onClose={() =>
+          setSnackbar({ ...snackbar, aberto: false })
+        }
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+      >
+        <Alert
+          severity={snackbar.tipo}
+          onClose={() =>
+            setSnackbar({ ...snackbar, aberto: false })
+          }
+          variant="filled"
+        >
+          {snackbar.mensagem}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

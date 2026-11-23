@@ -1,596 +1,654 @@
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
 
 import {
-  Box,
-  Typography,
-  Paper,
-  Chip,
-  TextField,
-  InputAdornment,
-  MenuItem,
-  Button,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Divider,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Avatar,
   Alert,
+  Avatar,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  IconButton,
+  MenuItem,
+  Paper,
+  Rating,
+  Snackbar,
+  Stack,
+  TextField,
+  Typography,
 } from '@mui/material';
 
 import {
-  Search,
   MessageSquare,
-  ThumbsUp,
-  ThumbsDown,
-  Meh,
-  Eye,
-  Filter,
-  Sparkles,
-  CalendarDays
+  Plus,
+  Search,
+  Star,
+  Trash2,
+  Pencil,
+  X,
 } from 'lucide-react';
 
-type Sentimento = 'Positivo' | 'Neutro' | 'Negativo';
+interface AvaliacaoAPI {
+  id: number;
+  comentario: string;
+  nota: number;
+  sentimento?: string;
+  data?: string;
+  cliente?: {
+    id: number;
+    nome: string;
+  };
+  unidade?: {
+    id: number;
+    nome: string;
+  };
+}
 
 interface Avaliacao {
   id: number;
   cliente: string;
   comentario: string;
   data: string;
-  sentimento: Sentimento;
-  assuntos: string[];
-  interpretacao: string;
+  sentimento: 'Positivo' | 'Neutro' | 'Negativo';
   nota: number;
+  unidade: string;
 }
 
-const cores: Record<Sentimento, string> = {
-  Positivo: '#319B72',
-  Neutro: '#C59637',
-  Negativo: '#D66B70'
+interface Cliente {
+  id: number;
+  nome: string;
+}
+
+interface Unidade {
+  id: number;
+  nome: string;
+}
+
+const API = 'http://localhost:8080/api';
+
+const sentimentoPorNota = (nota: number): Avaliacao['sentimento'] => {
+  if (nota >= 4) return 'Positivo';
+  if (nota === 3) return 'Neutro';
+  return 'Negativo';
 };
 
-function Avaliacoes() {
-  const [busca, setBusca] = useState('');
-  const [filtro, setFiltro] = useState('Todos');
-  const [selecionada, setSelecionada] = useState<Avaliacao | null>(null);
+const normalizarSentimento = (
+  sentimento?: string,
+  nota = 3,
+): Avaliacao['sentimento'] => {
+  const valor = sentimento?.toLowerCase();
+
+  if (valor?.includes('posit')) return 'Positivo';
+  if (valor?.includes('negat')) return 'Negativo';
+  if (valor?.includes('neutr')) return 'Neutro';
+
+  return sentimentoPorNota(nota);
+};
+
+const formatarData = (data?: string) => {
+  if (!data) return 'Data não informada';
+
+  const dataFormatada = new Date(data);
+
+  if (Number.isNaN(dataFormatada.getTime())) {
+    return 'Data não informada';
+  }
+
+  return dataFormatada.toLocaleDateString('pt-BR');
+};
+
+export default function Avaliacoes() {
   const { empresaId } = useParams();
 
-const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
-const [carregando, setCarregando] = useState(true);
-const [erro, setErro] = useState('');
+  const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [unidades, setUnidades] = useState<Unidade[]>([]);
 
-  const filtradas = useMemo(() => {
-    return avaliacoes.filter((item) => {
-      const correspondeBusca =
-        item.cliente.toLowerCase().includes(busca.toLowerCase()) ||
-        item.comentario.toLowerCase().includes(busca.toLowerCase()) ||
-        item.assuntos.some((assunto) =>
-          assunto.toLowerCase().includes(busca.toLowerCase())
-        );
+  const [busca, setBusca] = useState('');
+  const [filtro, setFiltro] = useState('Todos');
 
-      const correspondeFiltro =
-        filtro === 'Todos' || item.sentimento === filtro;
+  const [dialogAberto, setDialogAberto] = useState(false);
+  const [editando, setEditando] = useState<number | null>(null);
 
-      return correspondeBusca && correspondeFiltro;
-    });
-  }, [avaliacoes, busca, filtro]);
+  const [clienteId, setClienteId] = useState('');
+  const [unidadeId, setUnidadeId] = useState('');
+  const [nota, setNota] = useState<number | null>(5);
+  const [comentario, setComentario] = useState('');
+  const [sentimento, setSentimento] = useState('Positivo');
 
-  const quantidadePositivas = avaliacoes.filter(
-    (item) => item.sentimento === 'Positivo'
-  ).length;
+  const [carregando, setCarregando] = useState(false);
+  const [erro, setErro] = useState('');
+  const [mensagem, setMensagem] = useState('');
 
-  const quantidadeNeutras = avaliacoes.filter(
-    (item) => item.sentimento === 'Neutro'
-  ).length;
-
-  const quantidadeNegativas = avaliacoes.filter(
-    (item) => item.sentimento === 'Negativo'
-  ).length;
-
-  const indicadores = [
-    {
-      titulo: 'Total de avaliações',
-      valor: avaliacoes.length,
-      descricao: 'Comentários recebidos',
-      icon: MessageSquare,
-      cor: '#5578AD'
-    },
-    {
-      titulo: 'Positivas',
-      valor: quantidadePositivas,
-      descricao: 'Experiências satisfatórias',
-      icon: ThumbsUp,
-      cor: '#319B72'
-    },
-    {
-      titulo: 'Neutras',
-      valor: quantidadeNeutras,
-      descricao: 'Experiências sem tendência clara',
-      icon: Meh,
-      cor: '#C59637'
-    },
-    {
-      titulo: 'Negativas',
-      valor: quantidadeNegativas,
-      descricao: 'Experiências insatisfatórias',
-      icon: ThumbsDown,
-      cor: '#D66B70'
-    }
-  ];
-
-  const percentual = (valor: number) =>
-  avaliacoes.length === 0
-    ? '0.0'
-    : ((valor / avaliacoes.length) * 100).toFixed(1);
-
-  useEffect(() => {
-  const buscarAvaliacoes = async () => {
-    if (!empresaId) {
-      setErro('Empresa não identificada.');
-      setCarregando(false);
-      return;
-    }
+  const carregarAvaliacoes = useCallback(async () => {
+    if (!empresaId) return;
 
     try {
-      setCarregando(true);
-      setErro('');
-
       const resposta = await fetch(
-        `http://localhost:8080/api/avaliacoes/empresa/${empresaId}`
+        `${API}/avaliacoes/empresa/${empresaId}`,
       );
 
       if (!resposta.ok) {
         throw new Error('Não foi possível carregar as avaliações.');
       }
 
-      const dados = await resposta.json();
+      const dados: AvaliacaoAPI[] = await resposta.json();
 
-      const formatadas: Avaliacao[] = dados.map((item: any) => ({
-        id: item.id,
-        cliente: item.cliente?.nome ?? 'Cliente não identificado',
-        comentario: item.comentario ?? '',
-        data: item.data
-          ? new Date(item.data).toLocaleDateString('pt-BR')
-          : '',
-        sentimento: ['Positivo', 'Neutro', 'Negativo'].includes(item.sentimento)
-          ? item.sentimento as Sentimento
-          : 'Neutro',
-        assuntos: [],
-        interpretacao: 'Análise automatizada ainda não integrada.',
-        nota: item.nota
-      }));
-
-      setAvaliacoes(formatadas);
-
+      setAvaliacoes(
+        dados.map((item) => ({
+          id: item.id,
+          cliente: item.cliente?.nome ?? 'Cliente não identificado',
+          comentario: item.comentario ?? '',
+          data: formatarData(item.data),
+          sentimento: normalizarSentimento(item.sentimento, item.nota),
+          nota: item.nota,
+          unidade: item.unidade?.nome ?? 'Unidade não identificada',
+        })),
+      );
     } catch (error) {
       setErro(
         error instanceof Error
           ? error.message
-          : 'Erro ao carregar avaliações.'
+          : 'Erro ao carregar avaliações.',
+      );
+    }
+  }, [empresaId]);
+
+  const carregarOpcoes = useCallback(async () => {
+    if (!empresaId) return;
+
+    try {
+      const [clientesResposta, unidadesResposta] = await Promise.all([
+        fetch(`${API}/clientes/empresa/${empresaId}`),
+        fetch(`${API}/unidades/empresa/${empresaId}`),
+      ]);
+
+      if (!clientesResposta.ok || !unidadesResposta.ok) {
+        throw new Error('Não foi possível carregar clientes e unidades.');
+      }
+
+      const clientesDados: Cliente[] = await clientesResposta.json();
+      const unidadesDados: Unidade[] = await unidadesResposta.json();
+
+      setClientes(clientesDados);
+      setUnidades(unidadesDados);
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao carregar opções do formulário.',
+      );
+    }
+  }, [empresaId]);
+
+  useEffect(() => {
+    carregarAvaliacoes();
+    carregarOpcoes();
+  }, [carregarAvaliacoes, carregarOpcoes]);
+
+  const avaliacoesFiltradas = useMemo(() => {
+    return avaliacoes.filter((avaliacao) => {
+      const correspondeBusca =
+        avaliacao.cliente.toLowerCase().includes(busca.toLowerCase()) ||
+        avaliacao.comentario.toLowerCase().includes(busca.toLowerCase()) ||
+        avaliacao.unidade.toLowerCase().includes(busca.toLowerCase());
+
+      const correspondeFiltro =
+        filtro === 'Todos' || avaliacao.sentimento === filtro;
+
+      return correspondeBusca && correspondeFiltro;
+    });
+  }, [avaliacoes, busca, filtro]);
+
+  const mediaNotas = avaliacoes.length
+    ? avaliacoes.reduce((total, item) => total + item.nota, 0) /
+      avaliacoes.length
+    : 0;
+
+  const abrirCadastro = () => {
+    setEditando(null);
+    setClienteId('');
+    setUnidadeId('');
+    setNota(5);
+    setComentario('');
+    setSentimento('Positivo');
+    setErro('');
+    setDialogAberto(true);
+  };
+
+  const abrirEdicao = (avaliacao: Avaliacao) => {
+    const original = avaliacoes.find((item) => item.id === avaliacao.id);
+    if (!original) return;
+
+    setEditando(original.id);
+    setComentario(original.comentario);
+    setNota(original.nota);
+    setSentimento(original.sentimento);
+
+    // Os IDs são recuperados separadamente para edição.
+    const itemOriginal = avaliacoes.find((item) => item.id === original.id);
+    const clienteEncontrado = clientes.find(
+      (cliente) => cliente.nome === itemOriginal?.cliente,
+    );
+    const unidadeEncontrada = unidades.find(
+      (unidade) => unidade.nome === itemOriginal?.unidade,
+    );
+
+    setClienteId(clienteEncontrado ? String(clienteEncontrado.id) : '');
+    setUnidadeId(unidadeEncontrada ? String(unidadeEncontrada.id) : '');
+    setErro('');
+    setDialogAberto(true);
+  };
+
+  const salvarAvaliacao = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!empresaId || !clienteId || !unidadeId || !nota) {
+      setErro('Preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    setCarregando(true);
+    setErro('');
+
+    const payload = {
+      nota,
+      comentario,
+      sentimento,
+      empresa: { id: Number(empresaId) },
+      cliente: { id: Number(clienteId) },
+      unidade: { id: Number(unidadeId) },
+    };
+
+    try {
+      const url = editando
+        ? `${API}/avaliacoes/${editando}`
+        : `${API}/avaliacoes`;
+
+      const resposta = await fetch(url, {
+        method: editando ? 'PUT' : 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resposta.ok) {
+        const detalhe = await resposta.text();
+        throw new Error(detalhe || 'Não foi possível salvar a avaliação.');
+      }
+
+      setDialogAberto(false);
+      setMensagem(
+        editando
+          ? 'Avaliação atualizada com sucesso!'
+          : 'Avaliação cadastrada com sucesso!',
+      );
+
+      await carregarAvaliacoes();
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao salvar avaliação.',
       );
     } finally {
       setCarregando(false);
     }
   };
 
-  buscarAvaliacoes();
-}, [empresaId]);
+  const excluirAvaliacao = async (id: number) => {
+    const confirmar = window.confirm(
+      'Tem certeza de que deseja excluir esta avaliação?',
+    );
+
+    if (!confirmar) return;
+
+    try {
+      const resposta = await fetch(`${API}/avaliacoes/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!resposta.ok) {
+        throw new Error('Não foi possível excluir a avaliação.');
+      }
+
+      setMensagem('Avaliação excluída com sucesso!');
+      await carregarAvaliacoes();
+    } catch (error) {
+      setErro(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao excluir avaliação.',
+      );
+    }
+  };
+
+  const corSentimento = (valor: Avaliacao['sentimento']) => {
+    if (valor === 'Positivo') return 'success';
+    if (valor === 'Negativo') return 'error';
+    return 'warning';
+  };
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box sx={{ p: { xs: 2, md: 3 }, backgroundColor: '#f7f9fc', minHeight: '100%' }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        spacing={2}
+        mb={3}
+      >
+        <Box>
+          <Typography variant="h4" fontWeight={700} color="#172b4d">
+            Avaliações
+          </Typography>
+          <Typography color="text.secondary" mt={0.5}>
+            Acompanhe a opinião dos clientes sobre os serviços.
+          </Typography>
+        </Box>
 
-      {/* Cabeçalho */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" fontWeight={700} color="#1E1E2F">
-          Avaliações e satisfação
-        </Typography>
+        <Button
+          variant="contained"
+          startIcon={<Plus size={18} />}
+          onClick={abrirCadastro}
+          sx={{
+            textTransform: 'none',
+            borderRadius: 2,
+            px: 2.5,
+            py: 1.2,
+            backgroundColor: '#2563eb',
+          }}
+        >
+          Nova avaliação
+        </Button>
+      </Stack>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Acompanhe os comentários e identifique a percepção dos clientes.
-        </Typography>
+      <Box
+        display="grid"
+        gridTemplateColumns={{ xs: '1fr', sm: 'repeat(3, 1fr)' }}
+        gap={2}
+        mb={3}
+      >
+        <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <MessageSquare size={20} color="#2563eb" />
+            <Typography color="text.secondary">Total de avaliações</Typography>
+          </Stack>
+          <Typography variant="h4" fontWeight={700} mt={1}>
+            {avaliacoes.length}
+          </Typography>
+        </Paper>
+
+        <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Star size={20} color="#e6a23c" />
+            <Typography color="text.secondary">Nota média</Typography>
+          </Stack>
+          <Stack direction="row" alignItems="center" spacing={1} mt={1}>
+            <Typography variant="h4" fontWeight={700}>
+              {mediaNotas.toFixed(1)}
+            </Typography>
+            <Rating value={mediaNotas} precision={0.1} readOnly size="small" />
+          </Stack>
+        </Paper>
+
+        <Paper sx={{ p: 2.5, borderRadius: 3 }}>
+          <Typography color="text.secondary">Avaliações positivas</Typography>
+          <Typography variant="h4" fontWeight={700} mt={1}>
+            {avaliacoes.length
+              ? Math.round(
+                  (avaliacoes.filter((item) => item.sentimento === 'Positivo')
+                    .length /
+                    avaliacoes.length) *
+                    100,
+                )
+              : 0}
+            %
+          </Typography>
+        </Paper>
       </Box>
 
-      {erro && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {erro}
-        </Alert>
-      )}
+      <Paper sx={{ p: 2, borderRadius: 3, mb: 2 }}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={2}
+          alignItems={{ md: 'center' }}
+        >
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Buscar por cliente, comentário ou unidade..."
+            value={busca}
+            onChange={(event) => setBusca(event.target.value)}
+            InputProps={{
+              startAdornment: (
+                <Box sx={{ display: 'flex', mr: 1, color: 'text.secondary' }}>
+                  <Search size={18} />
+                </Box>
+              ),
+            }}
+          />
 
-      {/* Indicadores */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            sm: 'repeat(2, 1fr)',
-            lg: 'repeat(4, 1fr)'
-          },
-          gap: 2,
-          mb: 3
-        }}
-      >
-        {indicadores.map((item) => {
-          const Icon = item.icon;
+          <TextField
+            select
+            size="small"
+            label="Sentimento"
+            value={filtro}
+            onChange={(event) => setFiltro(event.target.value)}
+            sx={{ minWidth: { xs: '100%', md: 180 } }}
+          >
+            <MenuItem value="Todos">Todos</MenuItem>
+            <MenuItem value="Positivo">Positivo</MenuItem>
+            <MenuItem value="Neutro">Neutro</MenuItem>
+            <MenuItem value="Negativo">Negativo</MenuItem>
+          </TextField>
+        </Stack>
+      </Paper>
 
-          return (
-            <Paper
-              key={item.titulo}
-              elevation={0}
-              sx={{
-                p: 2.5,
-                borderRadius: 3,
-                border: '1px solid #E4EAF2'
-              }}
-            >
-              <Box sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <Typography variant="body2" color="text.secondary">
-                  {item.titulo}
-                </Typography>
+      <Stack spacing={2}>
+        {avaliacoesFiltradas.length === 0 ? (
+          <Paper sx={{ p: 5, borderRadius: 3, textAlign: 'center' }}>
+            <MessageSquare size={36} color="#94a3b8" />
+            <Typography fontWeight={600} mt={2}>
+              Nenhuma avaliação encontrada
+            </Typography>
+            <Typography color="text.secondary" variant="body2" mt={0.5}>
+              Cadastre uma avaliação ou altere os filtros da pesquisa.
+            </Typography>
+          </Paper>
+        ) : (
+          avaliacoesFiltradas.map((avaliacao) => (
+            <Paper key={avaliacao.id} sx={{ p: 2.5, borderRadius: 3 }}>
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                justifyContent="space-between"
+                spacing={2}
+              >
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Avatar sx={{ bgcolor: '#dbeafe', color: '#1d4ed8' }}>
+                    {avaliacao.cliente.charAt(0).toUpperCase()}
+                  </Avatar>
 
-                <Icon size={21} color={item.cor} />
-              </Box>
+                  <Box>
+                    <Typography fontWeight={700}>
+                      {avaliacao.cliente}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {avaliacao.unidade} • {avaliacao.data}
+                    </Typography>
+                  </Box>
+                </Stack>
 
-              <Typography variant="h4" fontWeight={700} color="#1E1E2F" sx={{ mt: 2 }}>
-                {item.valor}
-              </Typography>
+                <Stack
+                  direction="row"
+                  alignItems="center"
+                  spacing={1}
+                  flexWrap="wrap"
+                >
+                  <Chip
+                    label={avaliacao.sentimento}
+                    color={corSentimento(avaliacao.sentimento)}
+                    size="small"
+                  />
 
-              <Typography variant="caption" color="text.secondary">
-                {item.descricao}
+                  <IconButton
+                    size="small"
+                    onClick={() => abrirEdicao(avaliacao)}
+                    aria-label="Editar avaliação"
+                  >
+                    <Pencil size={17} />
+                  </IconButton>
+
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => excluirAvaliacao(avaliacao.id)}
+                    aria-label="Excluir avaliação"
+                  >
+                    <Trash2 size={17} />
+                  </IconButton>
+                </Stack>
+              </Stack>
+
+              <Divider sx={{ my: 2 }} />
+
+              <Rating value={avaliacao.nota} readOnly />
+
+              <Typography mt={1.5} color="text.secondary">
+                {avaliacao.comentario || 'Sem comentário.'}
               </Typography>
             </Paper>
-          );
-        })}
-      </Box>
+          ))
+        )}
+      </Stack>
 
-      {/* Distribuição dos sentimentos */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 3,
-          borderRadius: 3,
-          border: '1px solid #E4EAF2',
-          mb: 3
-        }}
-      >
-        <Typography variant="h6" fontWeight={700} color="#1E1E2F">
-          Distribuição dos sentimentos
-        </Typography>
-
-        <Typography variant="caption" color="text.secondary">
-          Classificação demonstrativa dos comentários
-        </Typography>
-
-        <Box sx={{ display: 'flex', height: 12, borderRadius: 5, overflow: 'hidden', mt: 3 }}>
-          <Box sx={{ width: `${percentual(quantidadePositivas)}%`, backgroundColor: '#319B72' }} />
-          <Box sx={{ width: `${percentual(quantidadeNeutras)}%`, backgroundColor: '#E5B95C' }} />
-          <Box sx={{ width: `${percentual(quantidadeNegativas)}%`, backgroundColor: '#D66B70' }} />
-        </Box>
-
-        <Box sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 2,
-          mt: 2
-        }}>
-          <Typography variant="body2" color="#319B72" fontWeight={600}>
-            Positivas · {percentual(quantidadePositivas)}%
-          </Typography>
-
-          <Typography variant="body2" color="#C59637" fontWeight={600}>
-            Neutras · {percentual(quantidadeNeutras)}%
-          </Typography>
-
-          <Typography variant="body2" color="#D66B70" fontWeight={600}>
-            Negativas · {percentual(quantidadeNegativas)}%
-          </Typography>
-        </Box>
-      </Paper>
-
-      {/* Lista de avaliações */}
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 3,
-          border: '1px solid #E4EAF2',
-          overflow: 'hidden'
-        }}
-      >
-        <Box sx={{ p: 3 }}>
-          <Typography variant="h6" fontWeight={700} color="#1E1E2F">
-            Comentários dos clientes
-          </Typography>
-
-          <Typography variant="caption" color="text.secondary">
-            Consulte e visualize a classificação de cada avaliação.
-          </Typography>
-
-          {/* Pesquisa e filtros */}
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 2,
-              mt: 3,
-              flexWrap: 'wrap'
-            }}
-          >
-            <TextField
-              placeholder="Pesquisar cliente, comentário ou assunto..."
-              size="small"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              sx={{
-                flex: 1,
-                minWidth: 220,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2
-                }
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search size={18} color="#71829A" />
-                  </InputAdornment>
-                )
-              }}
-            />
-
-            <TextField
-              select
-              size="small"
-              value={filtro}
-              onChange={(e) => setFiltro(e.target.value)}
-              sx={{
-                minWidth: 170,
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 2
-                }
-              }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Filter size={17} color="#71829A" />
-                  </InputAdornment>
-                )
-              }}
-            >
-              <MenuItem value="Todos">Todos os sentimentos</MenuItem>
-              <MenuItem value="Positivo">Positivos</MenuItem>
-              <MenuItem value="Neutro">Neutros</MenuItem>
-              <MenuItem value="Negativo">Negativos</MenuItem>
-            </TextField>
-          </Box>
-        </Box>
-
-        <Divider />
-
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 750 }}>
-            <TableHead sx={{ backgroundColor: '#F7F9FC' }}>
-              <TableRow>
-                <TableCell><b>Cliente</b></TableCell>
-                <TableCell><b>Comentário</b></TableCell>
-                <TableCell><b>Data</b></TableCell>
-                <TableCell><b>Sentimento</b></TableCell>
-                <TableCell align="center"><b>Ação</b></TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {carregando && (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 5 }}>
-                    Carregando avaliações...
-                  </TableCell>
-                </TableRow>
-              )}
-              {filtradas.map((item) => (
-                <TableRow
-                  key={item.id}
-                  hover
-                  sx={{ '&:last-child td': { borderBottom: 0 } }}
-                >
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Avatar
-                        sx={{
-                          width: 34,
-                          height: 34,
-                          backgroundColor: '#E8EEF9',
-                          color: '#1E1E2F',
-                          fontSize: 13
-                        }}
-                      >
-                        {item.cliente.slice(-3)}
-                      </Avatar>
-
-                      <Typography variant="body2" fontWeight={600}>
-                        {item.cliente}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-
-                  <TableCell sx={{ maxWidth: 300 }}>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      sx={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical'
-                      }}
-                    >
-                      {item.comentario}
-                    </Typography>
-                  </TableCell>
-
-                  <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {item.data}
-                    </Typography>
-                  </TableCell>
-
-                  <TableCell>
-                    <Chip
-                      label={item.sentimento}
-                      size="small"
-                      sx={{
-                        color: cores[item.sentimento],
-                        backgroundColor: `${cores[item.sentimento]}18`,
-                        fontWeight: 600
-                      }}
-                    />
-                  </TableCell>
-
-                  <TableCell align="center">
-                    <Button
-                      size="small"
-                      onClick={() => setSelecionada(item)}
-                      startIcon={<Eye size={16} />}
-                      sx={{
-                        color: '#1E1E2F',
-                        textTransform: 'none',
-                        fontWeight: 600
-                      }}
-                    >
-                      Detalhes
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-
-              {!carregando && filtradas.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ py: 5 }}>
-                    Nenhuma avaliação encontrada.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-
-        <Box sx={{ px: 3, py: 2 }}>
-          <Typography variant="caption" color="text.secondary">
-            Exibindo {filtradas.length} de {avaliacoes.length} avaliações.
-          </Typography>
-        </Box>
-      </Paper>
-
-      {/* Detalhes da avaliação */}
       <Dialog
-        open={Boolean(selecionada)}
-        onClose={() => setSelecionada(null)}
+        open={dialogAberto}
+        onClose={() => setDialogAberto(false)}
         fullWidth
         maxWidth="sm"
       >
-        {selecionada && (
-          <>
-            <DialogTitle sx={{ color: '#1E1E2F', fontWeight: 700 }}>
-              Detalhes da avaliação
-            </DialogTitle>
+        <Box
+          component="form"
+          onSubmit={salvarAvaliacao}
+        >
+          <DialogTitle>
+            <Stack direction="row" justifyContent="space-between" alignItems="center">
+              <Typography fontWeight={700} variant="h6">
+                {editando ? 'Editar avaliação' : 'Nova avaliação'}
+              </Typography>
+              <IconButton onClick={() => setDialogAberto(false)}>
+                <X size={20} />
+              </IconButton>
+            </Stack>
+          </DialogTitle>
 
-            <DialogContent dividers>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography fontWeight={600}>
-                  {selecionada.cliente}
+          <DialogContent>
+            <Stack spacing={2.5} pt={1}>
+              <TextField
+                select
+                label="Cliente"
+                value={clienteId}
+                onChange={(event) => setClienteId(event.target.value)}
+                required
+                fullWidth
+              >
+                {clientes.map((cliente) => (
+                  <MenuItem key={cliente.id} value={cliente.id}>
+                    {cliente.nome}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                label="Unidade"
+                value={unidadeId}
+                onChange={(event) => setUnidadeId(event.target.value)}
+                required
+                fullWidth
+              >
+                {unidades.map((unidade) => (
+                  <MenuItem key={unidade.id} value={unidade.id}>
+                    {unidade.nome}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <Box>
+                <Typography variant="body2" fontWeight={600} mb={1}>
+                  Nota da avaliação
                 </Typography>
-
-                <Chip
-                  label={selecionada.sentimento}
-                  size="small"
-                  sx={{
-                    color: cores[selecionada.sentimento],
-                    backgroundColor: `${cores[selecionada.sentimento]}18`,
-                    fontWeight: 600
+                <Rating
+                  value={nota}
+                  onChange={(_, novoValor) => {
+                    setNota(novoValor);
+                    if (novoValor) {
+                      setSentimento(sentimentoPorNota(novoValor));
+                    }
                   }}
+                  size="large"
                 />
               </Box>
 
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <CalendarDays size={16} color="#71829A" />
-                <Typography variant="caption" color="text.secondary">
-                  {selecionada.data}
-                </Typography>
-              </Box>
-
-              <Typography variant="subtitle2" color="#1E1E2F" sx={{ mb: 1 }}>
-                Comentário original
-              </Typography>
-
-              <Paper elevation={0} sx={{ p: 2, backgroundColor: '#F4F7FB', borderRadius: 2, mb: 3 }}>
-                <Typography variant="body2" lineHeight={1.8}>
-                  {selecionada.comentario}
-                </Typography>
-              </Paper>
-
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                <Sparkles size={19} color="#5578AD" />
-                <Typography variant="subtitle2" fontWeight={700} color="#1E1E2F">
-                  Análise demonstrativa
-                </Typography>
-              </Box>
-
-              <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.8, mb: 2 }}>
-                {selecionada.interpretacao}
-              </Typography>
-
-              <Typography variant="subtitle2" color="#1E1E2F" sx={{ mb: 1 }}>
-                Assuntos identificados
-              </Typography>
-
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {selecionada.assuntos.map((assunto) => (
-                  <Chip
-                    key={assunto}
-                    label={assunto}
-                    size="small"
-                    variant="outlined"
-                  />
-                ))}
-              </Box>
-
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', mt: 3 }}
+              <TextField
+                select
+                label="Sentimento"
+                value={sentimento}
+                onChange={(event) => setSentimento(event.target.value)}
+                fullWidth
               >
-                Classificação e interpretação ilustrativas. O processamento
-                automatizado por NLP ainda não está integrado nesta versão.
-              </Typography>
-            </DialogContent>
+                <MenuItem value="POSITIVO">Positivo</MenuItem>
+                <MenuItem value="NEUTRO">Neutro</MenuItem>
+                <MenuItem value="NEGATIVO">Negativo</MenuItem>
+              </TextField>
 
-            <DialogActions sx={{ p: 2 }}>
-              <Button
-                onClick={() => setSelecionada(null)}
-                sx={{
-                  color: '#1E1E2F',
-                  textTransform: 'none'
-                }}
-              >
-                Fechar
-              </Button>
-            </DialogActions>
-          </>
-        )}
+              <TextField
+                label="Comentário"
+                value={comentario}
+                onChange={(event) => setComentario(event.target.value)}
+                multiline
+                minRows={4}
+                fullWidth
+                inputProps={{ maxLength: 2000 }}
+              />
+
+              {erro && <Alert severity="error">{erro}</Alert>}
+            </Stack>
+          </DialogContent>
+
+          <DialogActions sx={{ p: 3, pt: 1 }}>
+            <Button
+              onClick={() => setDialogAberto(false)}
+              color="inherit"
+              sx={{ textTransform: 'none' }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={carregando}
+              sx={{ textTransform: 'none', borderRadius: 2 }}
+            >
+              {carregando ? 'Salvando...' : 'Salvar avaliação'}
+            </Button>
+          </DialogActions>
+        </Box>
       </Dialog>
 
+      <Snackbar
+        open={Boolean(mensagem)}
+        autoHideDuration={3500}
+        onClose={() => setMensagem('')}
+        message={mensagem}
+      />
     </Box>
   );
 }
-
-export default Avaliacoes;

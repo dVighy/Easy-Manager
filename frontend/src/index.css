@@ -33,7 +33,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #001535;
+    --text: #0f0035;
     --text-h: #000025;
     --bg: linear-gradient(180deg, #3d3d80 0%, #9c9894 100%);
     --border: #3a332e;  

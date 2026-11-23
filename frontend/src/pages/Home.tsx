@@ -11,6 +11,7 @@ import {
 import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined';
 import LocalParkingOutlinedIcon from '@mui/icons-material/LocalParkingOutlined';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import AddBusinessOutlinedIcon from '@mui/icons-material/AddBusinessOutlined';
 
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -84,16 +85,44 @@ function Home() {
           </Typography>
         </Box>
 
-        <Chip
-          icon={<BusinessOutlinedIcon />}
-          label={`${empresas.length} empresa(s) cadastrada(s)`}
+        <Box
           sx={{
-            backgroundColor: '#E1EAF8',
-            color: '#1E1E2F',
-            fontWeight: 600,
-            borderRadius: 2
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            flexWrap: 'wrap'
           }}
-        />
+        >
+          <Chip
+            icon={<BusinessOutlinedIcon />}
+            label={`${empresas.length} empresa(s) cadastrada(s)`}
+            sx={{
+              backgroundColor: '#E1EAF8',
+              color: '#1E1E2F',
+              fontWeight: 600,
+              borderRadius: 2
+            }}
+          />
+
+          <Button
+            variant="contained"
+            startIcon={<AddBusinessOutlinedIcon />}
+            onClick={() => navigate('/empresas')}
+            sx={{
+              backgroundColor: '#1E1E2F',
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              px: 2,
+              py: 1,
+              '&:hover': {
+                backgroundColor: '#30304A'
+              }
+            }}
+          >
+            Cadastrar empresa
+          </Button>
+        </Box>
       </Box>
 
       {/* Apresentação */}
@@ -247,7 +276,7 @@ function Home() {
                 fullWidth
                 variant="contained"
                 endIcon={<ArrowForwardRoundedIcon />}
-                onClick={() => navigate(`/empresa/${empresa.id}`)}
+                onClick={() => navigate(`/empresa/${empresa.id}/dashboard`)}
                 sx={{
                   backgroundColor: '#1E1E2F',
                   borderRadius: 2,
@@ -292,4 +321,3 @@ function Home() {
 }
 
 export default Home;
-
